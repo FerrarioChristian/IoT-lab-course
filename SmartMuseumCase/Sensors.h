@@ -1,8 +1,6 @@
 #ifndef SENSORS_H
 #define SENSORS_H
 
-#include <Arduino.h>
-
 /**
  * Inizializza i pin hardware dei sensori e imposta gli interrupt
  * per il Knock Sensor e l'ECHO dell'ultrasuoni.

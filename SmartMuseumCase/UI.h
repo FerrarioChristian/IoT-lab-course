@@ -1,8 +1,6 @@
 #ifndef UI_H
 #define UI_H
 
-#include <Arduino.h>
-
 /**
  * Inizializza comunicazione I2C, lo schermo LCD, i PIN dei LED e gli
  * interrupt per il modulo Rotary Encoder.

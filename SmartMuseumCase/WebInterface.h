@@ -1,11 +1,10 @@
 #ifndef WEBINTERFACE_H
 #define WEBINTERFACE_H
 
-#include <Arduino.h>
-
 /**
- * Inizializza la connessione WiFi e registra gli endpoint dell'ESP8266WebServer.
- * Si occupa di mappare l'interfaccia HTML ed esponere le REST API in JSON.
+ * Inizializza la connessione WiFi e registra gli endpoint
+ * dell'ESP8266WebServer. Si occupa di mappare l'interfaccia HTML ed esponere le
+ * REST API in JSON.
  */
 void setupWeb();
 

@@ -4,12 +4,11 @@
  */
 
 #include "Config.h"
+#include "Database.h"
 #include "Sensors.h"
 #include "State.h"
 #include "UI.h"
 #include "WebInterface.h"
-#include "Database.h"
-#include <Arduino.h>
 #include <Ticker.h>
 
 // ==========================================
@@ -89,9 +88,9 @@ void loop() {
     if (currentState == ARMED) {
       currentState = ALARM_ACTIVE;
       logSystemEvent("INTRUSION", "Knock sensor hardware triggered.");
-    }  // Aggiorna UI immediatamente
+    } // Aggiorna UI immediatamente
       // taskUI();
-    }
+  }
 
   // Controllo immediato input dell'utente locale o sblocco (SW Bottone)
   if (flagEncoderPressed) {
