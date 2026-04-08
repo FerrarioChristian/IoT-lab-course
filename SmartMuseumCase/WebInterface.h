@@ -1,6 +1,8 @@
 #ifndef WEBINTERFACE_H
 #define WEBINTERFACE_H
 
+#include <Arduino.h>
+
 /**
  * Inizializza la connessione WiFi e registra gli endpoint
  * dell'ESP8266WebServer. Si occupa di mappare l'interfaccia HTML ed esponere le
@@ -14,5 +16,11 @@ void setupWeb();
  * dei client della libreria, essenziale per la reattività del sito.
  */
 void handleWebTask();
+
+/**
+ * Aggiunge una riga di testo al buffer circolare interno per simulare 
+ * un monitor seriale visualizzabile dal sito web.
+ */
+void addLog(String msg);
 
 #endif // WEBINTERFACE_H

@@ -20,6 +20,6 @@ void taskDatabase();
  * restare come evento discreto indipendente nel log (Es. Intrusione, Allarme
  * spento)
  */
-void logSystemEvent(const String &eventName, const String &details = "");
+void logSystemEvent(const char* eventName, const char* details = "");
 
 #endif // DATABASE_H

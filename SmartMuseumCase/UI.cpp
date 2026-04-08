@@ -1,46 +1,48 @@
 #include "UI.h"
 #include "Config.h"
 #include "State.h"
+#include "WebInterface.h"
+#include <ESP8266WiFi.h>
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
+#define DISPLAY_CHARS 16  // number of characters on a line
+#define DISPLAY_LINES 2   // number of display lines
+#define DISPLAY_ADDR 0x27 // display address on I2C bus
+
 // Definiamo il classico schermo LCD 16x2 all'indirizzo hardware base 0x27 (a
 // volte può essere 0x3F)
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal_I2C lcd(DISPLAY_ADDR, DISPLAY_CHARS, DISPLAY_LINES);
 
 // Variabili asincrone per decodifica Encoder
 volatile int lastEncoded = 0;
 
-// Tempistiche LCD
 unsigned long lastUiUpdate = 0;
-const unsigned long uiInterval = 300; // Aggiorna LCD 3 volte al secondo
-
-// Variabili per il lampeggio non bloccante Green LED
-unsigned long lastLedBlink = 0;
-bool ledGreenState = false;
+const unsigned long uiInterval = 1000;
 
 // ==========================================
 // ISR ROTARY ENCODER
 // ==========================================
+// Integrata perfettamente la logica di lettura dell'encoder del Professore
+// all'interno di un interrupt leggerissimo legato SOLO al clock!
 void ICACHE_RAM_ATTR handleEncoderInterrupt() {
-  int MSB = digitalRead(PIN_ENC_CLK); // Most significant bit
-  int LSB = digitalRead(PIN_ENC_DT);  // Least significant bit
-
-  int encoded = (MSB << 1) | LSB;
-  int sum = (lastEncoded << 2) | encoded;
-
-  // A seconda della combinazione binaria passata/presente calcoliamo il verso
-  // di rotazione
-  if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
-    encoderCount++;
-  if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
-    encoderCount--;
-
-  lastEncoded = encoded;
+  static byte encoderClkLast = HIGH;
+  byte encoderClkVal = digitalRead(PIN_ENC_CLK);
+  if (encoderClkVal != encoderClkLast) {
+    if (digitalRead(PIN_ENC_DT) != encoderClkVal) {
+      encoderCount--; // Counterclockwise
+    } else {
+      encoderCount++; // Clockwise
+    }
+  }
+  encoderClkLast = encoderClkVal;
 }
 
 // ISR per il pulsante del Rotary Encoder
-void ICACHE_RAM_ATTR handleEncoderButton() { flagEncoderPressed = true; }
+void ICACHE_RAM_ATTR handleEncoderButton() {
+  addLog("Encoder button pressed");
+  flagEncoderPressed = true;
+}
 
 // ==========================================
 // FUNZIONI HELPERS LCD
@@ -78,12 +80,23 @@ void drawPageDistance() {
 void drawPageWiFi() {
   lcd.setCursor(0, 0);
   lcd.print("WiFi: ");
-  lcd.print("Disconn "); // Placeholder
+  if (WiFi.status() == WL_CONNECTED) {
+    lcd.print("Connesso");
+  } else {
+    lcd.print("Disconn ");
+  }
+
   lcd.setCursor(0, 1);
-  lcd.print("IP: Nessuno     ");
+  if (WiFi.status() == WL_CONNECTED) {
+    lcd.print(WiFi.localIP().toString());
+    lcd.print("     "); // Cancella eventuali ghost char
+  } else {
+    lcd.print("IP: Attesa...   ");
+  }
 }
 
 void updateDisplay() {
+  noInterrupts(); // PROTEZIONE ATOMICA: Disabilita interrupt sensori
   switch (currentPage) {
   case PAGE_ENV:
     drawPageEnv();
@@ -95,6 +108,7 @@ void updateDisplay() {
     drawPageWiFi();
     break;
   }
+  interrupts(); // Riabilita interrupt immediamente
 }
 
 // Navigazione pagine
@@ -105,8 +119,11 @@ void changePage(int direction) {
   if (next < 0)
     next = 2; // Wrap around
   currentPage = (PageState)next;
-  lcd.clear();      // Pulisce lo schermo solo al cambio pagina per evitare
-                    // sfarfallii
+
+  noInterrupts();
+  lcd.clear(); // Pulisce lo schermo solo al cambio pagina
+  interrupts();
+
   lastUiUpdate = 0; // Forza aggiornamento immediato della vista
 }
 
@@ -115,91 +132,69 @@ void changePage(int direction) {
 // ==========================================
 void setupUI() {
   // I2C
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.begin();
+  Wire.beginTransmission(DISPLAY_ADDR);
+  byte error = Wire.endTransmission();
+  if (error == 0) {
+    Serial.println("LCD found at address 0x27");
+    lcd.begin(DISPLAY_CHARS, DISPLAY_LINES);
+    lcd.setBacklight(255);
+    lcd.home();
+    lcd.clear();
+    lcd.print("   Booting... ");
 
-  // Inizializza lo schermo e accende la backlight
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(" Smart Museum ");
-  lcd.setCursor(0, 1);
-  lcd.print("   Booting... ");
-
-  // Setup PIN LED uscenti
-  pinMode(PIN_LED_RED, OUTPUT);
-  digitalWrite(PIN_LED_RED, LOW);
-  pinMode(PIN_LED_GREEN, OUTPUT);
-  digitalWrite(PIN_LED_GREEN, LOW);
+  } else {
+    Serial.println("LCD not found");
+  }
 
   // Setup ingressi Encoder con attivazione delle pull-up interne per sicurezza
   pinMode(PIN_ENC_CLK, INPUT_PULLUP);
   pinMode(PIN_ENC_DT, INPUT_PULLUP);
   pinMode(PIN_ENC_SW, INPUT_PULLUP);
 
-  // 3 Hardware interrupts. Uno a CHANGE per leggere la rotella, e FALLING per
-  // bottone (premuto verso ground)
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), handleEncoderInterrupt,
-                  CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_DT), handleEncoderInterrupt,
-                  CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_SW), handleEncoderButton,
-                  FALLING);
+  // Attiviamo la logica professore, ma ad aggancio hardware sul pin CLK
+  attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), handleEncoderInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENC_SW), handleEncoderButton, FALLING);
 }
 
 void taskUI() {
   unsigned long currentMillis = millis();
 
-  // 1. Controllo rotazione Encoder per cambio pagina asincrono
+  // Controllo rotazione controllata 100% in background dall'hardware
+  // Reagiamo asincronamente se il target di giri è stato superato. (Uno scatto encoder vale 2 conteggi in questa implementazione)
   static int localLastCount = 0;
-  // Poiché ogni scatto meccanico in teoria genera due iterazioni gray-code o 4,
-  // l'encoderCount potrebbe saltare di step (es. +4).
-  if (encoderCount >= localLastCount + 4 ||
-      encoderCount <= localLastCount - 4) {
+  if (encoderCount >= localLastCount + 2 ||
+      encoderCount <= localLastCount - 2) {
     if (encoderCount > localLastCount)
       changePage(1);
     else
       changePage(-1);
     localLastCount = encoderCount;
+    // Visibile nella pagina web /debug per convalida
+    addLog("Paging Hardware! Valore: " + String(encoderCount));
   }
 
-  // 2. Logic LED Indicator / Buzzer
-  if (currentState == ALARM_ACTIVE) {
-    digitalWrite(PIN_LED_RED, HIGH);  // LED Rosso/Sirena acceso (Stato Critico)
-    digitalWrite(PIN_LED_GREEN, LOW); // Verde sempre spento
-  } else if (currentState == ARMED &&
-             currentData.distanceCm < thresh_distance_min) {
-    // Warning PRE-ALLARME (Troppo vicini)
-    digitalWrite(PIN_LED_RED, LOW);
-    if (currentMillis - lastLedBlink >=
-        150) { // Lampeggio rapido verde asincrono
-      lastLedBlink = currentMillis;
-      ledGreenState = !ledGreenState;
-      digitalWrite(PIN_LED_GREEN, ledGreenState ? HIGH : LOW);
-    }
-  } else {
-    // Nessun allarme: Verde Fisso se ARMATO, tutto spento se DISARMATO
-    digitalWrite(PIN_LED_RED, LOW);
-    digitalWrite(PIN_LED_GREEN, (currentState == ARMED) ? HIGH : LOW);
-  }
-
-  // 3. Modifica temporizzata display e priorità degli allarmi a schermo
+  // // 3. Modifica temporizzata display e priorità degli allarmi a schermo
   if (currentMillis - lastUiUpdate >= uiInterval) {
     lastUiUpdate = currentMillis;
 
-    if (currentState == ALARM_ACTIVE) {
-      lcd.setCursor(0, 0);
-      lcd.print("!! INTRUSIONE !!"); // Override totale dello schermo
-      lcd.setCursor(0, 1);
-      lcd.print("Premere bottone ");
-    } else if (currentState == ARMED &&
-               currentData.distanceCm < thresh_distance_min) {
-      lcd.setCursor(0, 0);
-      lcd.print("  !! WARNING !! ");
-      lcd.setCursor(0, 1);
-      lcd.print("   Step back    ");
-    } else {
-      updateDisplay();
-    }
+    //   if (currentState == ALARM_ACTIVE) {
+    //     noInterrupts();
+    //     lcd.setCursor(0, 0);
+    //     lcd.print("!! INTRUSIONE !!");
+    //     lcd.setCursor(0, 1);
+    //     lcd.print("Premere bottone ");
+    //     interrupts();
+    //   } else if (currentState == ARMED &&
+    //              currentData.distanceCm < thresh_distance_min) {
+    //     noInterrupts();
+    //     lcd.setCursor(0, 0);
+    //     lcd.print("  !! WARNING !! ");
+    //     lcd.setCursor(0, 1);
+    //     lcd.print("   Step back    ");
+    //     interrupts();
+    //   } else {
+    updateDisplay();
+    //   }
   }
 }

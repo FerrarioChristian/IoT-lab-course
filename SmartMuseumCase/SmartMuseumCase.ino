@@ -15,7 +15,7 @@
 // ISTANZIAZIONE VARIABILI GLOBALI (da State.h e Config.h)
 // ==========================================
 volatile SystemState currentState = ARMED;
-volatile PageState currentPage = PAGE_ENV;
+volatile PageState currentPage = PAGE_WIFI;
 
 volatile SensorData currentData = {0.0, 0.0, 0, 0.0, false, 0};
 
@@ -67,6 +67,11 @@ void setup() {
   setupUI();
   setupWeb();
   setupDatabase();
+
+  // Test di avvio per il nuovo Web Serial Monitor!
+  addLog("==== SMART MUSEUM BOOT ====");
+  addLog("Hardware NodeMCU inizializzato con successo.");
+  addLog("Database InfluxDB e moduli pronti all'uso.");
 
   // Lo stato iniziale deve essere chiaramente armato e in sicurezza
   currentState = ARMED;
