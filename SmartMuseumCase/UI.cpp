@@ -10,8 +10,6 @@
 #define DISPLAY_LINES 2   // number of display lines
 #define DISPLAY_ADDR 0x27 // display address on I2C bus
 
-// Definiamo il classico schermo LCD 16x2 all'indirizzo hardware base 0x27 (a
-// volte può essere 0x3F)
 LiquidCrystal_I2C lcd(DISPLAY_ADDR, DISPLAY_CHARS, DISPLAY_LINES);
 
 // Variabili asincrone per decodifica Encoder
@@ -25,17 +23,15 @@ const unsigned long uiInterval = 1000;
 // ==========================================
 // Integrata perfettamente la logica di lettura dell'encoder del Professore
 // all'interno di un interrupt leggerissimo legato SOLO al clock!
+// Integrata logica iper-semplificata e indistruttibilie:
+// Se CLK va giù (scatto della rotella), guardo in che stato si trova DT per
+// capire la direzione.
 void ICACHE_RAM_ATTR handleEncoderInterrupt() {
-  static byte encoderClkLast = HIGH;
-  byte encoderClkVal = digitalRead(PIN_ENC_CLK);
-  if (encoderClkVal != encoderClkLast) {
-    if (digitalRead(PIN_ENC_DT) != encoderClkVal) {
-      encoderCount--; // Counterclockwise
-    } else {
-      encoderCount++; // Clockwise
-    }
+  if (digitalRead(PIN_ENC_DT) == HIGH) {
+    encoderCount++; // Senso Orario
+  } else {
+    encoderCount--; // Senso Antiorario
   }
-  encoderClkLast = encoderClkVal;
 }
 
 // ISR per il pulsante del Rotary Encoder
@@ -89,14 +85,14 @@ void drawPageWiFi() {
   lcd.setCursor(0, 1);
   if (WiFi.status() == WL_CONNECTED) {
     lcd.print(WiFi.localIP().toString());
-    lcd.print("     "); // Cancella eventuali ghost char
+    lcd.print("     ");
   } else {
     lcd.print("IP: Attesa...   ");
   }
 }
 
 void updateDisplay() {
-  noInterrupts(); // PROTEZIONE ATOMICA: Disabilita interrupt sensori
+  // noInterrupts(); // PROTEZIONE ATOMICA: Disabilita interrupt sensori
   switch (currentPage) {
   case PAGE_ENV:
     drawPageEnv();
@@ -108,7 +104,7 @@ void updateDisplay() {
     drawPageWiFi();
     break;
   }
-  interrupts(); // Riabilita interrupt immediamente
+  // interrupts(); // Riabilita interrupt immediamente
 }
 
 // Navigazione pagine
@@ -119,10 +115,7 @@ void changePage(int direction) {
   if (next < 0)
     next = 2; // Wrap around
   currentPage = (PageState)next;
-
-  noInterrupts();
   lcd.clear(); // Pulisce lo schermo solo al cambio pagina
-  interrupts();
 
   lastUiUpdate = 0; // Forza aggiornamento immediato della vista
 }
@@ -137,6 +130,7 @@ void setupUI() {
   byte error = Wire.endTransmission();
   if (error == 0) {
     Serial.println("LCD found at address 0x27");
+    addLog("LCD found at address 0x27");
     lcd.begin(DISPLAY_CHARS, DISPLAY_LINES);
     lcd.setBacklight(255);
     lcd.home();
@@ -147,31 +141,31 @@ void setupUI() {
     Serial.println("LCD not found");
   }
 
-  // Setup ingressi Encoder con attivazione delle pull-up interne per sicurezza
-  pinMode(PIN_ENC_CLK, INPUT_PULLUP);
-  pinMode(PIN_ENC_DT, INPUT_PULLUP);
+  pinMode(PIN_ENC_CLK, INPUT);
+  pinMode(PIN_ENC_DT, INPUT);
   pinMode(PIN_ENC_SW, INPUT_PULLUP);
 
-  // Attiviamo la logica professore, ma ad aggancio hardware sul pin CLK
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), handleEncoderInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_SW), handleEncoderButton, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), handleEncoderInterrupt,
+                  FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENC_SW), handleEncoderButton,
+                  FALLING);
 }
 
 void taskUI() {
   unsigned long currentMillis = millis();
 
   // Controllo rotazione controllata 100% in background dall'hardware
-  // Reagiamo asincronamente se il target di giri è stato superato. (Uno scatto encoder vale 2 conteggi in questa implementazione)
+  // Reagiamo asincronamente se il target di giri è stato superato. (Uno scatto
+  // encoder vale 2 conteggi in questa implementazione) Cambio pagina
+  // istantaneo. 1 click fisico = 1 pagina saltata.
   static int localLastCount = 0;
-  if (encoderCount >= localLastCount + 2 ||
-      encoderCount <= localLastCount - 2) {
+  if (encoderCount != localLastCount) {
     if (encoderCount > localLastCount)
       changePage(1);
     else
       changePage(-1);
     localLastCount = encoderCount;
-    // Visibile nella pagina web /debug per convalida
-    addLog("Paging Hardware! Valore: " + String(encoderCount));
+    addLog("Rotary Mosso! Valore: " + String(encoderCount));
   }
 
   // // 3. Modifica temporizzata display e priorità degli allarmi a schermo

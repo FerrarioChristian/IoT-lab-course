@@ -1,15 +1,15 @@
 #include "Sensors.h"
 #include "Config.h"
 #include "State.h"
+#include "WebInterface.h"
 #include <DHT.h>
 
-// Istanziamento del sensore DHT
 DHT dht(PIN_DHT, DHT_TYPE);
 
 // Variabili per timing non bloccante
 static unsigned long lastDhtRead = 0;
 const unsigned long dhtInterval =
-    2000; // DHT11 necessita di 2 secondi tra misurazioni
+    3000; // DHT11 necessita di almeno 2 secondi tra misurazioni
 
 static unsigned long lastSonarTrig = 0;
 const unsigned long sonarInterval = 60; // Frequenza ping sonar (60ms)
@@ -80,6 +80,8 @@ void taskSensori() {
     if (!isnan(h) && !isnan(t)) {
       currentData.humidity = h;
       currentData.temperature = t;
+    } else {
+      addLog("Errore sensore DHT11: NaN"); // Debug per mancata comunicazione
     }
   }
 

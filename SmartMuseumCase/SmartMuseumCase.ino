@@ -1,6 +1,5 @@
 /**
  * Smart Museum Display Case Monitoring System
- * Entry Point (Scheletro)
  */
 
 #include "Config.h"
@@ -34,10 +33,6 @@ Ticker sensorTicker;
 Ticker uiTicker;
 Ticker telemetryTicker;
 
-// Forward declared functions from other modules (placeholder per link futuri)
-// extern void setupWeb();
-// extern void handleWebTask();
-
 void taskTelemetry() {
   // logDatabaseTask();
 }
@@ -49,19 +44,15 @@ void setup() {
   // NOTA HARDWARE: TX(1) e RX(3) sono usati per Encoder e LED.
   // Usarli per il Serial incasina i pin hardware, per cui se dobbiamo
   // chiamare Serial.begin(), bisogna fare molta attenzione, o disattivarlo.
-  // L'ESP8266 inizializza Serial al boot, creiamo una pausa per log di sistema
-  // e spegniamolo.
   Serial.begin(115200);
   delay(500);
   Serial.println("\nBooting Smart Museum Display Case...");
   delay(10);
-  // Disabilitiamo Serial poiché usiamo RX e TX come GPIO regolari per i nostri
-  // componenti
   Serial.end();
 
   // Setup base dei PIN prima dell'assegnazione ai moduli specifici
-  // pinMode(PIN_LED_RED, OUTPUT);
-  // digitalWrite(PIN_LED_RED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
+  pinMode(PIN_LED_RED, OUTPUT);
+  digitalWrite(PIN_LED_RED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
 
   setupSensors();
   setupUI();
@@ -93,8 +84,8 @@ void loop() {
     if (currentState == ARMED) {
       currentState = ALARM_ACTIVE;
       logSystemEvent("INTRUSION", "Knock sensor hardware triggered.");
+      taskUI();
     } // Aggiorna UI immediatamente
-      // taskUI();
   }
 
   // Controllo immediato input dell'utente locale o sblocco (SW Bottone)
