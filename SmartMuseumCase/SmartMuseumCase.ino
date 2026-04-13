@@ -25,8 +25,8 @@ volatile int encoderCount = 0;
 // Valori predefiniti delle soglie (aggiornabili da WEB)
 float thresh_temp_max = 25.0;
 float thresh_hum_max = 60.0;
-int thresh_distance_min = 30;
-int thresh_light_min = 200;
+int thresh_distance_min = 10;
+int thresh_light_max = 930;
 
 // Oggetti Ticker per operazioni non bloccanti
 Ticker sensorTicker;

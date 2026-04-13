@@ -172,23 +172,23 @@ void taskUI() {
   if (currentMillis - lastUiUpdate >= uiInterval) {
     lastUiUpdate = currentMillis;
 
-    //   if (currentState == ALARM_ACTIVE) {
-    //     noInterrupts();
-    //     lcd.setCursor(0, 0);
-    //     lcd.print("!! INTRUSIONE !!");
-    //     lcd.setCursor(0, 1);
-    //     lcd.print("Premere bottone ");
-    //     interrupts();
-    //   } else if (currentState == ARMED &&
-    //              currentData.distanceCm < thresh_distance_min) {
-    //     noInterrupts();
-    //     lcd.setCursor(0, 0);
-    //     lcd.print("  !! WARNING !! ");
-    //     lcd.setCursor(0, 1);
-    //     lcd.print("   Step back    ");
-    //     interrupts();
-    //   } else {
-    updateDisplay();
-    //   }
+    if (currentState == ALARM_ACTIVE) {
+      noInterrupts();
+      lcd.setCursor(0, 0);
+      lcd.print("!! INTRUSIONE !!");
+      lcd.setCursor(0, 1);
+      lcd.print("Premere bottone ");
+      interrupts();
+    } else if (currentState == ARMED &&
+               currentData.distanceCm < thresh_distance_min) {
+      noInterrupts();
+      lcd.setCursor(0, 0);
+      lcd.print("  !! WARNING !! ");
+      lcd.setCursor(0, 1);
+      lcd.print("   Step back    ");
+      interrupts();
+    } else {
+      updateDisplay();
+    }
   }
 }
