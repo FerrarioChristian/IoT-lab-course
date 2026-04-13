@@ -120,4 +120,19 @@ void setupWeb() {
   server.begin();
 }
 
-void handleWebTask() { server.handleClient(); }
+void handleWebTask() {
+  // Gestione asincrona della riconnessione WiFi senza bloccare mai il loop
+  static unsigned long lastWifiCheck = 0;
+  if (millis() - lastWifiCheck >= 5000) {
+    lastWifiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      addLog("WiFi persa! Forzo riconnessione hardware...");
+      WiFi.reconnect(); 
+    }
+  }
+
+  // Rispondiamo tramite web server solo se l'hardware è attualmente connesso
+  if (WiFi.status() == WL_CONNECTED) {
+    server.handleClient();
+  }
+}
