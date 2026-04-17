@@ -178,6 +178,27 @@ void taskUI() {
       lcd.setCursor(0, 1);
       lcd.print("   Step back    ");
       interrupts();
+    } else if (currentData.temperature > thresh_temp_max) {
+      noInterrupts();
+      lcd.setCursor(0, 0);
+      lcd.print("!! ATTENZIONE !!");
+      lcd.setCursor(0, 1);
+      lcd.print(" Temp eccessiva ");
+      interrupts();
+    } else if (currentData.humidity > thresh_hum_max) {
+      noInterrupts();
+      lcd.setCursor(0, 0);
+      lcd.print("!! ATTENZIONE !!");
+      lcd.setCursor(0, 1);
+      lcd.print("  Umidita alta  ");
+      interrupts();
+    } else if (currentData.lightLevel > thresh_light_max) {
+      noInterrupts();
+      lcd.setCursor(0, 0);
+      lcd.print("!! ATTENZIONE !!");
+      lcd.setCursor(0, 1);
+      lcd.print(" Luce eccessiva ");
+      interrupts();
     } else {
       updateDisplay();
     }

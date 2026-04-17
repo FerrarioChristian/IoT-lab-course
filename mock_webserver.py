@@ -106,7 +106,14 @@ class ESPHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(state).encode('utf-8'))
+            
+            resp_data = state.copy()
+            resp_data["th_temp"] = settings["temp"]
+            resp_data["th_hum"] = settings["hum"]
+            resp_data["th_light"] = settings["light"]
+            resp_data["th_dist"] = settings["dist"]
+            
+            self.wfile.write(json.dumps(resp_data).encode('utf-8'))
             
         elif self.path == "/api/settings":
             self.send_response(200)

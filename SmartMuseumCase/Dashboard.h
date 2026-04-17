@@ -158,6 +158,16 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             font-weight: 500;
         }
 
+        .threshold {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
         .controls {
             margin-top: 3rem;
             display: flex;
@@ -229,18 +239,22 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                 <div class="card">
                     <h3>Distanza</h3>
                     <div class="value" id="val-dist">--<span class="unit">cm</span></div>
+                    <div class="threshold" id="th-dist">Min: -- cm</div>
                 </div>
                 <div class="card">
                     <h3>Temperatura</h3>
                     <div class="value" id="val-temp">--<span class="unit">°C</span></div>
+                    <div class="threshold" id="th-temp">Max: -- °C</div>
                 </div>
                 <div class="card">
                     <h3>Umidità</h3>
                     <div class="value" id="val-hum">--<span class="unit">%</span></div>
+                    <div class="threshold" id="th-hum">Max: -- %</div>
                 </div>
                 <div class="card">
                     <h3>Luce</h3>
                     <div class="value" id="val-light">--<span class="unit">lux</span></div>
+                    <div class="threshold" id="th-light">Max: -- val</div>
                 </div>
             </div>
 
@@ -280,9 +294,16 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                 
                 // Aggiorna valori
                 document.getElementById('val-temp').innerHTML = data.temp.toFixed(1) + '<span class="unit">°C</span>';
+                if(data.th_temp !== undefined) document.getElementById('th-temp').innerText = 'Max: ' + data.th_temp + ' °C';
+
                 document.getElementById('val-hum').innerHTML = data.hum.toFixed(0) + '<span class="unit">%</span>';
+                if(data.th_hum !== undefined) document.getElementById('th-hum').innerText = 'Max: ' + data.th_hum + ' %';
+
                 document.getElementById('val-dist').innerHTML = data.dist.toFixed(1) + '<span class="unit">cm</span>';
+                if(data.th_dist !== undefined) document.getElementById('th-dist').innerText = 'Min: ' + data.th_dist + ' cm';
+
                 document.getElementById('val-light').innerHTML = data.light + '<span class="unit"> val</span>';
+                if(data.th_light !== undefined) document.getElementById('th-light').innerText = 'Max: ' + data.th_light + ' val';
 
                 // Gestione Visiva dello Stato
                 const badge = document.getElementById('statusBadge');

@@ -78,6 +78,10 @@ void handleApiDataRoute() {
   jsonString += "\"hum\":" + String(currentData.humidity) + ",";
   jsonString += "\"light\":" + String(currentData.lightLevel) + ",";
   jsonString += "\"dist\":" + String(currentData.distanceCm) + ",";
+  jsonString += "\"th_temp\":" + String(thresh_temp_max) + ",";
+  jsonString += "\"th_hum\":" + String(thresh_hum_max) + ",";
+  jsonString += "\"th_light\":" + String(thresh_light_max) + ",";
+  jsonString += "\"th_dist\":" + String(thresh_distance_min) + ",";
 
   // Traduciamo lo stato in stringa Enum
   String stateStr;

@@ -8,7 +8,6 @@
 #include "State.h"
 #include "UI.h"
 #include "WebInterface.h"
-#include <Ticker.h>
 
 // ==========================================
 // ISTANZIAZIONE VARIABILI GLOBALI (da State.h e Config.h)
@@ -27,15 +26,6 @@ float thresh_temp_max = 25.0;
 float thresh_hum_max = 60.0;
 int thresh_distance_min = 10;
 int thresh_light_max = 930;
-
-// Oggetti Ticker per operazioni non bloccanti
-Ticker sensorTicker;
-Ticker uiTicker;
-Ticker telemetryTicker;
-
-void taskTelemetry() {
-  // logDatabaseTask();
-}
 
 // ==========================================
 // SETUP
