@@ -45,7 +45,7 @@ void drawPageEnv() {
   lcd.print("%  "); // Spazi per overwrite sporco precedente
 
   lcd.setCursor(0, 1);
-  lcd.print("Luce:");
+  lcd.print("Light:");
   lcd.print(currentData.lightLevel);
   lcd.print("         "); // Cancella ghost char
 }
@@ -58,11 +58,11 @@ void drawPageDistance() {
 
   lcd.setCursor(0, 1);
   if (currentState == ARMED) {
-    lcd.print("Stato: ARMATO   ");
+    lcd.print("State: ARMED    ");
   } else if (currentState == DISARMED) {
-    lcd.print("Stato: DISARMATO");
+    lcd.print("State: DISARMED ");
   } else {
-    lcd.print("!! ALLARME !!   ");
+    lcd.print("!! ALARM !!     ");
   }
 }
 
@@ -70,9 +70,9 @@ void drawPageWiFi() {
   lcd.setCursor(0, 0);
   lcd.print("WiFi: ");
   if (WiFi.status() == WL_CONNECTED) {
-    lcd.print("Connesso");
+    lcd.print("Connected ");
   } else {
-    lcd.print("Disconn ");
+    lcd.print("Disconn.  ");
   }
 
   lcd.setCursor(0, 1);
@@ -80,7 +80,7 @@ void drawPageWiFi() {
     lcd.print(WiFi.localIP().toString());
     lcd.print("     ");
   } else {
-    lcd.print("IP: Attesa...   ");
+    lcd.print("IP: Waiting...  ");
   }
 }
 
@@ -115,7 +115,33 @@ void changePage(int direction) {
 // ==========================================
 // SETUP & EXECUTIONS
 // ==========================================
+
+// Routine "Bus Recovery" per evitare blocchi dell'I2C dopo un riavvio software
+void recoverI2C() {
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+  delay(10);
+  
+  // Se la linea è tenuta giù (stuck), il display stava trasmettendo al momento del reset
+  if (digitalRead(PIN_I2C_SDA) == LOW) {
+    pinMode(PIN_I2C_SCL, OUTPUT);
+    for (int i = 0; i < 9; i++) { // Max 9 colpi di clock per svuotare il buffer del PCF8574
+      digitalWrite(PIN_I2C_SCL, HIGH);
+      delayMicroseconds(20);
+      digitalWrite(PIN_I2C_SCL, LOW);
+      delayMicroseconds(20);
+      if (digitalRead(PIN_I2C_SDA) == HIGH) break;
+    }
+  }
+  // Ripristina allo stato neutro
+  pinMode(PIN_I2C_SDA, INPUT);
+  pinMode(PIN_I2C_SCL, INPUT);
+}
+
 void setupUI() {
+  // Sblocca forzatamente gli screen I2C bloccati dal soft-reset
+  recoverI2C();
+
   // I2C - Limite Clock Stretching cruciale per evitare che la libreria I2C
   // finisca in un timeout enorme bloccando il web server quando l'encoder
   // interrompe
@@ -157,7 +183,7 @@ void taskUI() {
     else
       changePage(-1);
     localLastCount = encoderCount;
-    addLog("Rotary Mosso! Valore: " + String(encoderCount));
+    addLog("Rotary moved! Value: " + String(encoderCount));
   }
 
   if (currentMillis - lastUiUpdate >= uiInterval) {
@@ -166,9 +192,9 @@ void taskUI() {
     if (currentState == ALARM_ACTIVE) {
       noInterrupts();
       lcd.setCursor(0, 0);
-      lcd.print("!! INTRUSIONE !!");
+      lcd.print(" !! INTRUSION !!");
       lcd.setCursor(0, 1);
-      lcd.print("Premere bottone ");
+      lcd.print("  Press button  ");
       interrupts();
     } else if (currentState == ARMED &&
                currentData.distanceCm < thresh_distance_min) {
@@ -181,23 +207,23 @@ void taskUI() {
     } else if (currentData.temperature > thresh_temp_max) {
       noInterrupts();
       lcd.setCursor(0, 0);
-      lcd.print("!! ATTENZIONE !!");
+      lcd.print("  !! ALERT !!   ");
       lcd.setCursor(0, 1);
-      lcd.print(" Temp eccessiva ");
+      lcd.print("High Temperature");
       interrupts();
     } else if (currentData.humidity > thresh_hum_max) {
       noInterrupts();
       lcd.setCursor(0, 0);
-      lcd.print("!! ATTENZIONE !!");
+      lcd.print("  !! ALERT !!   ");
       lcd.setCursor(0, 1);
-      lcd.print("  Umidita alta  ");
+      lcd.print(" High Humidity  ");
       interrupts();
     } else if (currentData.lightLevel > thresh_light_max) {
       noInterrupts();
       lcd.setCursor(0, 0);
-      lcd.print("!! ATTENZIONE !!");
+      lcd.print("  !! ALERT !!   ");
       lcd.setCursor(0, 1);
-      lcd.print(" Luce eccessiva ");
+      lcd.print("  Excess Light  ");
       interrupts();
     } else {
       updateDisplay();

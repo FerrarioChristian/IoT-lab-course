@@ -44,6 +44,13 @@ void setupSensors() {
   pinMode(PIN_LDR, INPUT);
 
   // DHT11 Temperature and Humidity Sensor Setup
+  // Shock terapia per DHT11 "Blue Module":
+  // In caso di riavvio software l'integrato si blocca (latch-up) aspettando un fine
+  // transazione che non arriverà. Lo forziamo HIGH per 250ms per resettargli la macchina a stati.
+  pinMode(PIN_DHT, OUTPUT);
+  digitalWrite(PIN_DHT, HIGH);
+  delay(250);
+  
   dht.begin();
 
   // Knock / Hit Sensor Setup
