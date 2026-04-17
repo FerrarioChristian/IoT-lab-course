@@ -33,7 +33,7 @@
 extern float thresh_temp_max;
 extern float thresh_hum_max;
 extern int thresh_distance_min;
-extern int thresh_light_min;
+extern int thresh_light_max;
 
 // ==========================================
 // WIFI & INFLUXDB CREDENTIALS

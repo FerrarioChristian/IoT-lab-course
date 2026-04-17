@@ -6,10 +6,8 @@
 
 DHT dht(PIN_DHT, DHT_TYPE);
 
-// Variabili per timing non bloccante
 static unsigned long lastDhtRead = 0;
-const unsigned long dhtInterval =
-    3000; // DHT11 necessita di almeno 2 secondi tra misurazioni
+const unsigned long dhtInterval = 3000; // DHT11 necessita 2 secondi tra letture
 
 static unsigned long lastSonarTrig = 0;
 const unsigned long sonarInterval = 60; // Frequenza ping sonar (60ms)
@@ -39,11 +37,13 @@ void ICACHE_RAM_ATTR handleEchoInterrupt() {
 }
 
 // ==========================================
-// INIZIALIZZAZIONE
+// SETUP
 // ==========================================
 void setupSensors() {
+  // LDR Light Sensor Setup
   pinMode(PIN_LDR, INPUT);
 
+  // DHT11 Temperature and Humidity Sensor Setup
   dht.begin();
 
   // Knock / Hit Sensor Setup
@@ -51,10 +51,11 @@ void setupSensors() {
   attachInterrupt(digitalPinToInterrupt(PIN_KNOCK), handleKnockInterrupt,
                   FALLING);
 
-  // HC-SR04 Setup
+  // HC-SR04 Ultrasonic Sensor Setup
   pinMode(PIN_HC_TRIG, OUTPUT);
   digitalWrite(PIN_HC_TRIG, LOW);
   pinMode(PIN_HC_ECHO, INPUT);
+
   // Interrupt in CHANGE perché ci serve calcolare l'intervallo tra il fronte di
   // salita e quello di discesa
   attachInterrupt(digitalPinToInterrupt(PIN_HC_ECHO), handleEchoInterrupt,
@@ -68,8 +69,14 @@ void taskSensori() {
   unsigned long currentMillis = millis();
 
   // 1. LETTURA ANALOGICA LDR
-  // Trattandosi di un chip con conversione ultraveloce, analogRead non blocca
-  currentData.lightLevel = analogRead(PIN_LDR);
+  // L'ADC dell'ESP8266 è condiviso con il modulo Wi-Fi per la calibrazione di
+  // potenza TX. Spammarlo a 100.000 hz nel loop causa il collasso delle
+  // performance radio (Pagine web lente)!
+  static unsigned long lastLdrRead = 0;
+  if (currentMillis - lastLdrRead >= 500) {
+    lastLdrRead = currentMillis;
+    currentData.lightLevel = analogRead(PIN_LDR);
+  }
 
   // 2. LETTURA DHT11
   if (currentMillis - lastDhtRead >= dhtInterval) {

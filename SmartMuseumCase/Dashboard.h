@@ -1,7 +1,7 @@
 #ifndef DASHBOARD_H
 #define DASHBOARD_H
 
-#include <Arduino.h> 
+#include <Arduino.h>
 
 // Utilizziamo un raw literal C++ con direttiva PROGMEM per salvare il malloppo
 // stringa nella Flash e non nella RAM (preziosissima)
@@ -13,8 +13,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Museum Dashboard</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;800&display=swap');
-        
         :root {
             --bg: #09090b;
             --panel: rgba(24, 24, 27, 0.8);
@@ -125,7 +123,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 2rem;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
             overflow: hidden;
         }
@@ -138,14 +135,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             opacity: 0;
             transition: opacity 0.3s;
         }
-
-        .card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(255,255,255,0.1);
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .card:hover::before { opacity: 1; }
 
         .card h3 {
             margin: 0;
@@ -195,7 +184,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
 
         button:hover {
             background: rgba(255,255,255,0.1);
-            transform: scale(1.05);
         }
 
         button.primary {
@@ -267,14 +255,22 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                 </button>
                 <button class="danger" onclick="sendCommand('MUTE')">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"></path></svg>
-                    Silenzia Allarme
+                    Silenzia
+                </button>
+                <button onclick="window.location.href='/settings'">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    Impostazioni
+                </button>
+                <button onclick="window.location.href='/debug'">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    Debug
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        const UPDATE_INTERVAL = 500; // Aggiornamento ogni 500ms
+        const UPDATE_INTERVAL = 3000;
 
         async function fetchTelemetry() {
             try {
@@ -292,7 +288,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                 const badge = document.getElementById('statusBadge');
                 if (data.state === 'ALARM_ACTIVE') {
                     badge.className = 'status-badge status-alarm';
-                    badge.innerText = '⚠️ INTRUSIONE RILEVATA ⚠️';
+                    badge.innerText = 'INTRUSIONE RILEVATA';
                     document.body.classList.add('danger-bg');
                 } else if (data.state === 'ARMED') {
                     badge.className = 'status-badge status-armed';
@@ -330,6 +326,296 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
         // Avvio ciclo infinito asincrono
         setInterval(fetchTelemetry, UPDATE_INTERVAL);
         fetchTelemetry(); // Init immediato
+    </script>
+</body>
+</html>
+)=====";
+
+const char SETTINGS_HTML[] PROGMEM = R"=====(
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impostazioni Soglie</title>
+    <style>
+        :root {
+            --bg: #09090b;
+            --panel: rgba(24, 24, 27, 0.8);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.4);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        body {
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.15) 0%, rgba(9,9,11,1) 50%);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            width: 95%;
+            max-width: 600px;
+            padding: 2rem 0;
+        }
+        .glass-panel {
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            text-align: center;
+            margin: 0 0 2rem 0;
+            font-weight: 800;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        button {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Outfit', sans-serif;
+        }
+        button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        button.primary:hover {
+            background: #4f46e5;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="glass-panel">
+            <h1>Impostazioni Soglie</h1>
+            <div class="form-group">
+                <label>Distanza Minima Allarme (cm)</label>
+                <input type="number" id="dist" step="1">
+            </div>
+            <div class="form-group">
+                <label>Luminosità Massima (lux / val)</label>
+                <input type="number" id="light" step="1">
+            </div>
+            <div class="form-group">
+                <label>Umidità Massima (%)</label>
+                <input type="number" id="hum" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Temperatura Massima (°C)</label>
+                <input type="number" id="temp" step="0.1">
+            </div>
+            <div class="controls">
+                <button onclick="window.location.href='/'">Indietro</button>
+                <button class="primary" onclick="salvaImpostazioni()">Salva Valori</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function fetchSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                document.getElementById('dist').value = data.dist;
+                document.getElementById('light').value = data.light;
+                document.getElementById('hum').value = data.hum;
+                document.getElementById('temp').value = data.temp;
+            } catch (error) {
+                console.error("Errore fetch impostazioni:", error);
+            }
+        }
+        async function salvaImpostazioni() {
+            const formData = new URLSearchParams();
+            formData.append('dist', document.getElementById('dist').value);
+            formData.append('light', document.getElementById('light').value);
+            formData.append('hum', document.getElementById('hum').value);
+            formData.append('temp', document.getElementById('temp').value);
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
+                if(res.ok) {
+                    alert("Impostazioni salvate con successo!");
+                } else {
+                    alert("Errore salvataggio!");
+                }
+            } catch(e) {
+                alert("Errore di rete");
+            }
+        }
+        fetchSettings();
+    </script>
+</body>
+</html>
+)=====";
+
+const char DEBUG_HTML[] PROGMEM = R"=====(
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console di Debug</title>
+    <style>
+        :root {
+            --bg: #09090b;
+            --panel: rgba(24, 24, 27, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #22c55e;
+            --accent: #6366f1;
+        }
+        body {
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.1) 0%, rgba(9,9,11,1) 50%);
+            color: var(--text);
+            font-family: 'Fira Code', monospace;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-family: 'Outfit', sans-serif;
+        }
+        h1 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 1.8rem;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid var(--border);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .terminal {
+            flex: 1;
+            background: var(--panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .line {
+            margin-bottom: 0.3rem;
+            word-wrap: break-word;
+        }
+        .line .time {
+            color: #94a3b8;
+            margin-right: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Console di Debug</h1>
+        <button onclick="window.location.href='/'">Torna alla Dashboard</button>
+    </div>
+    <div class="terminal" id="terminal">
+        <div class="line">=== SMART MUSEUM SERIAL CONSOLE ===</div>
+        <div class="line">In attesa di log...</div>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        let lastLogs = "";
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/debug_data');
+                const text = await response.text();
+                
+                if (text !== lastLogs) {
+                    lastLogs = text;
+                    const lines = text.split('\n').filter(l => l.trim() !== '');
+                    let html = '';
+                    lines.forEach(line => {
+                        html += `<div class="line">${line}</div>`;
+                    });
+                    terminal.innerHTML = html;
+                    terminal.scrollTop = terminal.scrollHeight; // tail -f
+                }
+            } catch (error) {
+                console.error("Errore fetch log:", error);
+            }
+        }
+
+        setInterval(fetchLogs, 1000);
+        fetchLogs();
     </script>
 </body>
 </html>

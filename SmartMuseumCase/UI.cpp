@@ -6,31 +6,24 @@
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
-#define DISPLAY_CHARS 16  // number of characters on a line
-#define DISPLAY_LINES 2   // number of display lines
-#define DISPLAY_ADDR 0x27 // display address on I2C bus
+#define DISPLAY_CHARS 16
+#define DISPLAY_LINES 2
+#define DISPLAY_ADDR 0x27
 
 LiquidCrystal_I2C lcd(DISPLAY_ADDR, DISPLAY_CHARS, DISPLAY_LINES);
 
-// Variabili asincrone per decodifica Encoder
 volatile int lastEncoded = 0;
-
 unsigned long lastUiUpdate = 0;
 const unsigned long uiInterval = 1000;
 
 // ==========================================
 // ISR ROTARY ENCODER
 // ==========================================
-// Integrata perfettamente la logica di lettura dell'encoder del Professore
-// all'interno di un interrupt leggerissimo legato SOLO al clock!
-// Integrata logica iper-semplificata e indistruttibilie:
-// Se CLK va giù (scatto della rotella), guardo in che stato si trova DT per
-// capire la direzione.
 void ICACHE_RAM_ATTR handleEncoderInterrupt() {
   if (digitalRead(PIN_ENC_DT) == HIGH) {
-    encoderCount++; // Senso Orario
+    encoderCount++;
   } else {
-    encoderCount--; // Senso Antiorario
+    encoderCount--;
   }
 }
 
@@ -92,7 +85,8 @@ void drawPageWiFi() {
 }
 
 void updateDisplay() {
-  // noInterrupts(); // PROTEZIONE ATOMICA: Disabilita interrupt sensori
+  noInterrupts();
+  lcd.clear();
   switch (currentPage) {
   case PAGE_ENV:
     drawPageEnv();
@@ -104,45 +98,47 @@ void updateDisplay() {
     drawPageWiFi();
     break;
   }
-  // interrupts(); // Riabilita interrupt immediamente
+  interrupts();
 }
 
-// Navigazione pagine
 void changePage(int direction) {
   int next = (int)currentPage + direction;
   if (next > 2)
-    next = 0; // Wrap around
+    next = 0;
   if (next < 0)
-    next = 2; // Wrap around
+    next = 2;
   currentPage = (PageState)next;
-  lcd.clear(); // Pulisce lo schermo solo al cambio pagina
 
-  lastUiUpdate = 0; // Forza aggiornamento immediato della vista
+  lastUiUpdate = 0;
 }
 
 // ==========================================
 // SETUP & EXECUTIONS
 // ==========================================
 void setupUI() {
-  // I2C
+  // I2C - Limite Clock Stretching cruciale per evitare che la libreria I2C
+  // finisca in un timeout enorme bloccando il web server quando l'encoder
+  // interrompe
   Wire.begin();
+  Wire.setClock(100000);
+  Wire.setClockStretchLimit(2000);
+
   Wire.beginTransmission(DISPLAY_ADDR);
   byte error = Wire.endTransmission();
   if (error == 0) {
-    Serial.println("LCD found at address 0x27");
     addLog("LCD found at address 0x27");
     lcd.begin(DISPLAY_CHARS, DISPLAY_LINES);
     lcd.setBacklight(255);
     lcd.home();
     lcd.clear();
     lcd.print("   Booting... ");
-
   } else {
-    Serial.println("LCD not found");
+    addLog("LCD not found, check I2C Error");
   }
 
-  pinMode(PIN_ENC_CLK, INPUT);
-  pinMode(PIN_ENC_DT, INPUT);
+  // TODO: Check if pullup is necessary
+  pinMode(PIN_ENC_CLK, INPUT_PULLUP);
+  pinMode(PIN_ENC_DT, INPUT_PULLUP);
   pinMode(PIN_ENC_SW, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), handleEncoderInterrupt,
@@ -154,10 +150,6 @@ void setupUI() {
 void taskUI() {
   unsigned long currentMillis = millis();
 
-  // Controllo rotazione controllata 100% in background dall'hardware
-  // Reagiamo asincronamente se il target di giri è stato superato. (Uno scatto
-  // encoder vale 2 conteggi in questa implementazione) Cambio pagina
-  // istantaneo. 1 click fisico = 1 pagina saltata.
   static int localLastCount = 0;
   if (encoderCount != localLastCount) {
     if (encoderCount > localLastCount)
@@ -168,7 +160,6 @@ void taskUI() {
     addLog("Rotary Mosso! Valore: " + String(encoderCount));
   }
 
-  // // 3. Modifica temporizzata display e priorità degli allarmi a schermo
   if (currentMillis - lastUiUpdate >= uiInterval) {
     lastUiUpdate = currentMillis;
 

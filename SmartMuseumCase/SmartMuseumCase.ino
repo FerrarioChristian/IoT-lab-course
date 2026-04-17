@@ -41,16 +41,13 @@ void taskTelemetry() {
 // SETUP
 // ==========================================
 void setup() {
-  // NOTA HARDWARE: TX(1) e RX(3) sono usati per Encoder e LED.
-  // Usarli per il Serial incasina i pin hardware, per cui se dobbiamo
-  // chiamare Serial.begin(), bisogna fare molta attenzione, o disattivarlo.
-  Serial.begin(115200);
-  delay(500);
-  Serial.println("\nBooting Smart Museum Display Case...");
-  delay(10);
-  Serial.end();
+  // TX(1) e RX(3) sono usati, quindi non é possibile usare il Serial Monitor
+  // Serial.begin(115200);
+  // delay(500);
+  // Serial.println("\nBooting Smart Museum Display Case...");
+  // delay(10);
+  // Serial.end();
 
-  // Setup base dei PIN prima dell'assegnazione ai moduli specifici
   pinMode(PIN_LED_RED, OUTPUT);
   digitalWrite(PIN_LED_RED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
 
@@ -59,12 +56,10 @@ void setup() {
   setupWeb();
   setupDatabase();
 
-  // Test di avvio per il nuovo Web Serial Monitor!
   addLog("==== SMART MUSEUM BOOT ====");
   addLog("Hardware NodeMCU inizializzato con successo.");
   addLog("Database InfluxDB e moduli pronti all'uso.");
 
-  // Lo stato iniziale deve essere chiaramente armato e in sicurezza
   currentState = ARMED;
 }
 
@@ -72,11 +67,10 @@ void setup() {
 // MAIN LOOP
 // ==========================================
 void loop() {
-  // Esecuzione continua tasks asincroni (internamente usano millis)
   taskSensori();
   taskUI();
   taskDatabase();
-  handleWebTask(); // Chiamata al web server handleClient()
+  handleWebTask();
 
   // Controllo immediato interrupt di Allarme (Knock Sensor)
   if (flagKnockDetected) {
@@ -88,11 +82,11 @@ void loop() {
     } // Aggiorna UI immediatamente
   }
 
-  // Controllo immediato input dell'utente locale o sblocco (SW Bottone)
+  // Controllo immediato bottone encoder
   if (flagEncoderPressed) {
     flagEncoderPressed = false;
     if (currentState == ALARM_ACTIVE) {
-      currentState = ARMED; // Muta allarme e resetta lo stato (Acknowledge)
+      currentState = ARMED; // Muta allarme e resetta lo stato
       logSystemEvent("ALARM_ACK", "Silenced by local hardware button.");
     }
   }

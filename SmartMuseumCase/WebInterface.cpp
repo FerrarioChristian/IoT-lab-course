@@ -23,11 +23,12 @@ void addLog(String msg) {
   logIndex = (logIndex + 1) % MAX_LOGS;
 }
 
-void handleDebugRoute() {
-  String out = "=== SMART MUSEUM SERIAL CONSOLE ===\n";
-  out += "Aggiorna la pagina per leggere i nuovi log in tempo reale.\n\n";
-  
-  // Stampa il buffer in ordine circolare (dal più vecchio al più nuovo)
+void handleDebugPage() {
+  server.send_P(200, "text/html", DEBUG_HTML);
+}
+
+void handleApiDebugData() {
+  String out = "";
   for (int i = 0; i < MAX_LOGS; i++) {
     int idx = (logIndex + i) % MAX_LOGS;
     if (logBuffer[idx].length() > 0) {
@@ -35,6 +36,28 @@ void handleDebugRoute() {
     }
   }
   server.send(200, "text/plain", out);
+}
+
+void handleSettingsRoute() {
+  server.send_P(200, "text/html", SETTINGS_HTML);
+}
+
+void handleApiSettingsGetRoute() {
+  String json = "{";
+  json += "\"dist\":" + String(thresh_distance_min) + ",";
+  json += "\"light\":" + String(thresh_light_max) + ",";
+  json += "\"hum\":" + String(thresh_hum_max) + ",";
+  json += "\"temp\":" + String(thresh_temp_max);
+  json += "}";
+  server.send(200, "application/json", json);
+}
+
+void handleApiSettingsPostRoute() {
+  if (server.hasArg("dist")) thresh_distance_min = server.arg("dist").toInt();
+  if (server.hasArg("light")) thresh_light_max = server.arg("light").toInt();
+  if (server.hasArg("hum")) thresh_hum_max = server.arg("hum").toFloat();
+  if (server.hasArg("temp")) thresh_temp_max = server.arg("temp").toFloat();
+  server.send(200, "text/plain", "OK");
 }
 
 // ==========================================
@@ -114,7 +137,11 @@ void setupWeb() {
   server.on("/", HTTP_GET, handleRootRoute);
   server.on("/api/data", HTTP_GET, handleApiDataRoute);
   server.on("/api/action", HTTP_POST, handleApiActionRoute);
-  server.on("/debug", HTTP_GET, handleDebugRoute); // <-- Rotta del Serial Monitor Virtuale
+  server.on("/debug", HTTP_GET, handleDebugPage);
+  server.on("/api/debug_data", HTTP_GET, handleApiDebugData);
+  server.on("/settings", HTTP_GET, handleSettingsRoute);
+  server.on("/api/settings", HTTP_GET, handleApiSettingsGetRoute);
+  server.on("/api/settings", HTTP_POST, handleApiSettingsPostRoute);
 
   // Avvia Server Letale
   server.begin();

@@ -1,6 +1,8 @@
 #include "Database.h"
 #include "Config.h"
 #include "State.h"
+#include "WebInterface.h"
+#include <ESP8266WiFi.h>
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 
@@ -29,11 +31,9 @@ void setupDatabase() {
   timeSync("UTC", "pool.ntp.org", "time.nis.gov");
 
   if (client.validateConnection()) {
-    Serial.print("Connected to InfluxDB: ");
-    Serial.println(client.getServerUrl());
+    addLog("Connected to InfluxDB: " + client.getServerUrl());
   } else {
-    Serial.print("InfluxDB connection failed: ");
-    Serial.println(client.getLastErrorMessage());
+    addLog("InfluxDB connection failed: " + client.getLastErrorMessage());
   }
 
   // Scrive subito l'evento di un riavvio effettivo
@@ -49,6 +49,14 @@ void taskDatabase() {
   // Ogni 10 secondi preleviamo i dati attuali RAM e li sputiamo in C++
   if (currentMillis - lastTelemetrySync >= telemetryInterval) {
     lastTelemetrySync = currentMillis;
+
+    // Controllo Preventivo Anti-Blocco:
+    // Evitiamo di ingolfare il loop principale con pesanti timeout di rete 
+    // cercando di scrivere su un DB remoto senza avere linea WiFi fisicamente attiva
+    if (WiFi.status() != WL_CONNECTED) {
+      addLog("Salto scrittura DB: Nessuna connettività WiFi.");
+      return;
+    }
 
     // Reset buffer
     telemetry.clearFields();
@@ -75,7 +83,14 @@ void taskDatabase() {
     telemetry.addField("internal_state", stateCode);
 
     // Non bloccante per l'intera durata se la connessione rete non fa capricci
+    unsigned long startWrite = millis();
     client.writePoint(telemetry);
+    unsigned long endWrite = millis();
+    
+    // Se la scrittura supera i 100ms, notifichiamo il rallentamento anomalo!
+    if (endWrite - startWrite > 100) {
+      addLog("ATTENZIONE! InfluxDB lento: " + String(endWrite - startWrite) + " ms");
+    }
   }
 }
 
