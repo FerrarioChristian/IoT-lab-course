@@ -121,16 +121,19 @@ void recoverI2C() {
   pinMode(PIN_I2C_SDA, INPUT_PULLUP);
   pinMode(PIN_I2C_SCL, INPUT_PULLUP);
   delay(10);
-  
-  // Se la linea è tenuta giù (stuck), il display stava trasmettendo al momento del reset
+
+  // Se la linea è tenuta giù (stuck), il display stava trasmettendo al momento
+  // del reset
   if (digitalRead(PIN_I2C_SDA) == LOW) {
     pinMode(PIN_I2C_SCL, OUTPUT);
-    for (int i = 0; i < 9; i++) { // Max 9 colpi di clock per svuotare il buffer del PCF8574
+    for (int i = 0; i < 9;
+         i++) { // Max 9 colpi di clock per svuotare il buffer del PCF8574
       digitalWrite(PIN_I2C_SCL, HIGH);
       delayMicroseconds(20);
       digitalWrite(PIN_I2C_SCL, LOW);
       delayMicroseconds(20);
-      if (digitalRead(PIN_I2C_SDA) == HIGH) break;
+      if (digitalRead(PIN_I2C_SDA) == HIGH)
+        break;
     }
   }
   // Ripristina allo stato neutro
@@ -228,5 +231,31 @@ void taskUI() {
     } else {
       updateDisplay();
     }
+  }
+
+  // --- LOGICA ATTUATORI (LED & BUZZER) ESEGUITA AD OGNI CICLO ---
+  bool isAlarm = (currentState == ALARM_ACTIVE);
+  bool isWarning =
+      (currentState == ARMED && currentData.distanceCm < thresh_distance_min) ||
+      (currentData.temperature > thresh_temp_max) ||
+      (currentData.humidity > thresh_hum_max) ||
+      (currentData.lightLevel > thresh_light_max);
+
+  if (isAlarm) {
+    // Sirena bitonale per allarme grave (intrusione)
+    if ((currentMillis / 300) % 2 == 0) {
+      tone(PIN_BUZZER, 1200);
+    } else {
+      tone(PIN_BUZZER, 800);
+    }
+  } else if (isWarning) {
+    // Beep discontinuo per warning (150ms di suono ogni secondo)
+    if (currentMillis % 1000 < 150) {
+      tone(PIN_BUZZER, 1000);
+    } else {
+      noTone(PIN_BUZZER);
+    }
+  } else {
+    noTone(PIN_BUZZER);
   }
 }

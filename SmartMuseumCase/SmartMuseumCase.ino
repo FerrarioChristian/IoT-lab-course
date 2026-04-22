@@ -38,8 +38,10 @@ void setup() {
   // delay(10);
   // Serial.end();
 
-  pinMode(PIN_LED_RED, OUTPUT);
-  digitalWrite(PIN_LED_RED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
 
   setupSensors();
   setupUI();

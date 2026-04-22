@@ -21,8 +21,8 @@
 #define PIN_I2C_SCL D1 // D1 (GPIO5): I2C SCL per LCD
 #define PIN_I2C_SDA D2 // D2 (GPIO4): I2C SDA per LCD
 
-#define PIN_LED_RED D8 // D8 (GPIO15): Red LED (Deve essere LOW al boot)
-#define PIN_LED_GREEN 1 // TX (GPIO1) : Green LED
+#define PIN_LED D8     // D8 (GPIO15): Indicator LED (Deve essere LOW al boot)
+#define PIN_BUZZER 1   // TX (GPIO1): Passive Buzzer
 
 // ==========================================
 // THRESHOLDS & SETTINGS

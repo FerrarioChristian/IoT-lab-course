@@ -29,7 +29,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
 
         body {
             background-color: var(--bg);
-            background-image: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.15) 0%, rgba(9,9,11,1) 50%);
             color: var(--text);
             font-family: 'Outfit', sans-serif;
             display: flex;
@@ -203,7 +202,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
         
         button.primary:hover {
             background: #4f46e5;
-            box-shadow: 0 0 20px var(--accent-glow);
         }
 
         button.danger {
@@ -215,7 +213,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
         button.danger:hover {
             background: var(--red);
             color: white;
-            box-shadow: 0 0 20px var(--red-glow);
         }
 
         .danger-bg {
@@ -317,7 +314,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                     document.body.classList.remove('danger-bg');
                 } else {
                     badge.className = 'status-badge status-disarmed';
-                    badge.innerText = 'SISTEMA DISARMATO (MANUTENZIONE)';
+                    badge.innerText = 'SISTEMA DISARMATO';
                     document.body.classList.remove('danger-bg');
                 }
 
@@ -371,7 +368,6 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
         }
         body {
             background-color: var(--bg);
-            background-image: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.15) 0%, rgba(9,9,11,1) 50%);
             color: var(--text);
             font-family: 'Outfit', sans-serif;
             display: flex;
@@ -392,7 +388,6 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 3rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         h1 {
             text-align: center;
@@ -453,7 +448,6 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
         }
         button.primary:hover {
             background: #4f46e5;
-            box-shadow: 0 0 20px var(--accent-glow);
         }
     </style>
 </head>
@@ -541,7 +535,6 @@ const char DEBUG_HTML[] PROGMEM = R"=====(
         }
         body {
             background-color: var(--bg);
-            background-image: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.1) 0%, rgba(9,9,11,1) 50%);
             color: var(--text);
             font-family: 'Fira Code', monospace;
             margin: 0;
@@ -586,7 +579,6 @@ const char DEBUG_HTML[] PROGMEM = R"=====(
             padding: 1.5rem;
             overflow-y: auto;
             position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             font-size: 0.95rem;
             line-height: 1.5;
         }
