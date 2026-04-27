@@ -9,7 +9,7 @@ void setupSensors();
 
 /**
  * Funzione asincrona (non bloccante) per campionare i dati dai sensori.
- * Deve essere chiamata nel loop o tramite Ticker frequentemente.
+ * Deve essere chiamata nel loop frequentemente.
  */
 void taskSensori();
 

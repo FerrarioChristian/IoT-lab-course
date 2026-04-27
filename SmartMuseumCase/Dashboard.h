@@ -258,11 +258,11 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             <div class="controls">
                 <button class="primary" onclick="sendCommand('ARM')">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    Attiva (Arm)
+                    Arma
                 </button>
                 <button onclick="sendCommand('DISARM')">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Disattiva
+                    Disarma
                 </button>
                 <button class="danger" onclick="sendCommand('MUTE')">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"></path></svg>

@@ -46,13 +46,9 @@ void setupDatabase() {
 void taskDatabase() {
   unsigned long currentMillis = millis();
 
-  // Ogni 10 secondi preleviamo i dati attuali RAM e li sputiamo in C++
   if (currentMillis - lastTelemetrySync >= telemetryInterval) {
     lastTelemetrySync = currentMillis;
 
-    // Controllo Preventivo Anti-Blocco:
-    // Evitiamo di ingolfare il loop principale con pesanti timeout di rete 
-    // cercando di scrivere su un DB remoto senza avere linea WiFi fisicamente attiva
     if (WiFi.status() != WL_CONNECTED) {
       addLog("Salto scrittura DB: Nessuna connettività WiFi.");
       return;
@@ -81,23 +77,13 @@ void taskDatabase() {
     if (currentState == ALARM_ACTIVE)
       stateCode = 2;
     telemetry.addField("internal_state", stateCode);
-
-    // Non bloccante per l'intera durata se la connessione rete non fa capricci
-    unsigned long startWrite = millis();
-    client.writePoint(telemetry);
-    unsigned long endWrite = millis();
-    
-    // Se la scrittura supera i 100ms, notifichiamo il rallentamento anomalo!
-    if (endWrite - startWrite > 100) {
-      addLog("ATTENZIONE! InfluxDB lento: " + String(endWrite - startWrite) + " ms");
-    }
   }
 }
 
 // ==========================================
 // TRIGGER LOG DI STATO DISCRETO
 // ==========================================
-void logSystemEvent(const char* eventName, const char* details) {
+void logSystemEvent(const char *eventName, const char *details) {
   systemEvents.clearFields();
   systemEvents.clearTags();
 

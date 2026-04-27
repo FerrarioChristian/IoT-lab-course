@@ -45,12 +45,13 @@ void setupSensors() {
 
   // DHT11 Temperature and Humidity Sensor Setup
   // Shock terapia per DHT11 "Blue Module":
-  // In caso di riavvio software l'integrato si blocca (latch-up) aspettando un fine
-  // transazione che non arriverà. Lo forziamo HIGH per 250ms per resettargli la macchina a stati.
+  // In caso di riavvio software l'integrato si blocca (latch-up) aspettando un
+  // fine transazione che non arriverà. Lo forziamo HIGH per 250ms per
+  // resettargli la macchina a stati.
   pinMode(PIN_DHT, OUTPUT);
   digitalWrite(PIN_DHT, HIGH);
   delay(250);
-  
+
   dht.begin();
 
   // Knock / Hit Sensor Setup
@@ -117,15 +118,9 @@ void taskSensori() {
 
     // Filtriamo letture scartinate dal rumore elettrico (23000ms corrispondono
     // a ca. 4 metri, limite sensoristico)
-    if (duration > 0 && duration < 23000) {
+    if (duration > 0) {
       float distance = (duration * 0.0343) / 2.0;
       currentData.distanceCm = distance;
-
-      // Check threshold di pre-allarme locale se siamo Armati
-      if (currentState == ARMED && distance < thresh_distance_min) {
-        // Pre-Allarme! Qui possiamo attivare lampeggio LED verde o altro.
-        // Verrà gestito specificatamente nel modulo UI.
-      }
     }
   }
 }

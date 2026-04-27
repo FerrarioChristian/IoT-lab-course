@@ -18,14 +18,11 @@ int logIndex = 0;
 void addLog(String msg) {
   unsigned long ms = millis();
   float sec = ms / 1000.0;
-  // Format: [12.45s] Messaggio
   logBuffer[logIndex] = "[" + String(sec, 2) + "s] " + msg;
   logIndex = (logIndex + 1) % MAX_LOGS;
 }
 
-void handleDebugPage() {
-  server.send_P(200, "text/html", DEBUG_HTML);
-}
+void handleDebugPage() { server.send_P(200, "text/html", DEBUG_HTML); }
 
 void handleApiDebugData() {
   String out = "";
@@ -38,9 +35,7 @@ void handleApiDebugData() {
   server.send(200, "text/plain", out);
 }
 
-void handleSettingsRoute() {
-  server.send_P(200, "text/html", SETTINGS_HTML);
-}
+void handleSettingsRoute() { server.send_P(200, "text/html", SETTINGS_HTML); }
 
 void handleApiSettingsGetRoute() {
   String json = "{";
@@ -53,10 +48,14 @@ void handleApiSettingsGetRoute() {
 }
 
 void handleApiSettingsPostRoute() {
-  if (server.hasArg("dist")) thresh_distance_min = server.arg("dist").toInt();
-  if (server.hasArg("light")) thresh_light_max = server.arg("light").toInt();
-  if (server.hasArg("hum")) thresh_hum_max = server.arg("hum").toFloat();
-  if (server.hasArg("temp")) thresh_temp_max = server.arg("temp").toFloat();
+  if (server.hasArg("dist"))
+    thresh_distance_min = server.arg("dist").toInt();
+  if (server.hasArg("light"))
+    thresh_light_max = server.arg("light").toInt();
+  if (server.hasArg("hum"))
+    thresh_hum_max = server.arg("hum").toFloat();
+  if (server.hasArg("temp"))
+    thresh_temp_max = server.arg("temp").toFloat();
   server.send(200, "text/plain", "OK");
 }
 
@@ -157,8 +156,8 @@ void handleWebTask() {
   if (millis() - lastWifiCheck >= 5000) {
     lastWifiCheck = millis();
     if (WiFi.status() != WL_CONNECTED) {
-      addLog("WiFi persa! Forzo riconnessione hardware...");
-      WiFi.reconnect(); 
+      addLog("WiFi persa! Riconnessione...");
+      WiFi.reconnect();
     }
   }
 

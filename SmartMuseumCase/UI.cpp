@@ -233,7 +233,7 @@ void taskUI() {
     }
   }
 
-  // --- LOGICA ATTUATORI (LED & BUZZER) ESEGUITA AD OGNI CICLO ---
+  // --- LOGICA ATTUATORI (BUZZER) ESEGUITA AD OGNI CICLO ---
   bool isAlarm = (currentState == ALARM_ACTIVE);
   bool isWarning =
       (currentState == ARMED && currentData.distanceCm < thresh_distance_min) ||
@@ -241,21 +241,47 @@ void taskUI() {
       (currentData.humidity > thresh_hum_max) ||
       (currentData.lightLevel > thresh_light_max);
 
+  // LOGICA BUZZER
+  static bool isBuzzing = false;
+  static unsigned int currentFreq = 0;
+
   if (isAlarm) {
     // Sirena bitonale per allarme grave (intrusione)
-    if ((currentMillis / 300) % 2 == 0) {
-      tone(PIN_BUZZER, 1200);
-    } else {
-      tone(PIN_BUZZER, 800);
+    unsigned int freq = ((currentMillis / 300) % 2 == 0) ? 1200 : 800;
+    if (freq != currentFreq) {
+      pinMode(PIN_BUZZER, OUTPUT);
+      tone(PIN_BUZZER, freq);
+      currentFreq = freq;
     }
+    isBuzzing = true;
   } else if (isWarning) {
     // Beep discontinuo per warning (150ms di suono ogni secondo)
     if (currentMillis % 1000 < 150) {
-      tone(PIN_BUZZER, 1000);
+      if (currentFreq != 1000) {
+        pinMode(PIN_BUZZER, OUTPUT);
+        tone(PIN_BUZZER, 1000);
+        currentFreq = 1000;
+      }
+      isBuzzing = true;
     } else {
-      noTone(PIN_BUZZER);
+      if (isBuzzing) {
+        noTone(PIN_BUZZER);
+        // FIX ESP8266: La funzione noTone() a volte fallisce nello scollegare
+        // completamente il timer hardware dal pin, lasciando un suono fisso.
+        // Mettendo il pin in INPUT (Alta Impedenza) lo scolleghiamo fisicamente,
+        // garantendo il silenzio totale ed evitando interferenze.
+        pinMode(PIN_BUZZER, INPUT);
+        isBuzzing = false;
+        currentFreq = 0;
+      }
     }
   } else {
-    noTone(PIN_BUZZER);
+    if (isBuzzing || currentFreq != 0) {
+      noTone(PIN_BUZZER);
+      // FIX ESP8266: Isola il pin in alta impedenza per sicurezza
+      pinMode(PIN_BUZZER, INPUT);
+      isBuzzing = false;
+      currentFreq = 0;
+    }
   }
 }

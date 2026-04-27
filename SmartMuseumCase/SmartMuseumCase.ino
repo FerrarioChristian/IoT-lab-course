@@ -22,10 +22,10 @@ volatile bool flagEncoderPressed = false;
 volatile int encoderCount = 0;
 
 // Valori predefiniti delle soglie (aggiornabili da WEB)
-float thresh_temp_max = 25.0;
+float thresh_temp_max = 28.0;
 float thresh_hum_max = 60.0;
-int thresh_distance_min = 10;
-int thresh_light_max = 930;
+int thresh_distance_min = 30;
+int thresh_light_max = 960;
 
 // ==========================================
 // SETUP
@@ -36,10 +36,8 @@ void setup() {
   // delay(500);
   // Serial.println("\nBooting Smart Museum Display Case...");
   // delay(10);
-  // Serial.end();
+  Serial.end();
 
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, LOW); // Obbligatorio LOW al boot per D8(GPIO15)
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
 
