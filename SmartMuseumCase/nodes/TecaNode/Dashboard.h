@@ -3,8 +3,6 @@
 
 #include <Arduino.h>
 
-// Utilizziamo un raw literal C++ con direttiva PROGMEM per salvare il malloppo
-// stringa nella Flash e non nella RAM (preziosissima)
 const char DASHBOARD_HTML[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html lang="it">

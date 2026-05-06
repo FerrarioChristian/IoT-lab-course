@@ -1,7 +1,6 @@
 #include "WebInterface.h"
 #include "Config.h"
 #include "Dashboard.h"
-#include "Database.h"
 #include "State.h"
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
@@ -11,7 +10,7 @@ ESP8266WebServer server(80);
 // ==========================================
 // SIMULATORE SERIALE OVER-THE-AIR (OTA LOG)
 // ==========================================
-const int MAX_LOGS = 20; // Conserva le ultime 20 righe
+const int MAX_LOGS = 20;
 String logBuffer[MAX_LOGS];
 int logIndex = 0;
 
@@ -63,15 +62,10 @@ void handleApiSettingsPostRoute() {
 // ROUTE HANDLERS
 // ==========================================
 
-void handleRootRoute() {
-  // Restituisce la dashboard HTML salvata in PROGMEM, velocissimo ed
-  // efficiente.
-  server.send_P(200, "text/html", DASHBOARD_HTML);
-}
+void handleRootRoute() { server.send_P(200, "text/html", DASHBOARD_HTML); }
 
 void handleApiDataRoute() {
-  // Assembliamo un rudimentale ma eficientist JSON nativo senza librerie
-  // esterne giganti
+
   String jsonString = "{";
   jsonString += "\"temp\":" + String(currentData.temperature) + ",";
   jsonString += "\"hum\":" + String(currentData.humidity) + ",";
@@ -102,18 +96,17 @@ void handleApiActionRoute() {
     String cmd = server.arg("cmd");
     if (cmd == "ARM") {
       if (currentState != ARMED)
-        logSystemEvent("SYSTEM_ARMED", "Armed via Web API.");
+        addLog("SYSTEM_ARMED: Armed via Web API.");
       currentState = ARMED;
     } else if (cmd == "DISARM") {
       if (currentState != DISARMED)
-        logSystemEvent("SYSTEM_DISARMED", "Disarmed via Web API.");
+        addLog("SYSTEM_DISARMED: Disarmed via Web API.");
       currentState = DISARMED;
     } else if (cmd == "MUTE" && currentState == ALARM_ACTIVE) {
       currentState = ARMED;
-      logSystemEvent("ALARM_ACK", "Silenced via Web API.");
+      addLog("ALARM_ACK: Silenced via Web API.");
     }
   }
-  // Ritorna semplice ok
   server.send(200, "text/plain", "OK");
 }
 
@@ -122,21 +115,8 @@ void handleApiActionRoute() {
 // ==========================================
 
 void setupWeb() {
-  // Imposta modalità Station
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  // WiFi is already connected by NetworkManager in setup()
 
-  // NOTA: il while seguente è parzialmente bloccante (di proposito al boot)
-  // Non avendo un display che scrolla testo fluido, è accettabile.
-  // L'hardware resta fermo qui dentro durante i primi 3-4 secondi.
-  // Se fallisce, prosegue, ma senza IP non c'è server.
-  int retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 20) {
-    delay(500);
-    retries++;
-  }
-
-  // Mappa le Rotte URI sulle funzioni
   server.on("/", HTTP_GET, handleRootRoute);
   server.on("/api/data", HTTP_GET, handleApiDataRoute);
   server.on("/api/action", HTTP_POST, handleApiActionRoute);
@@ -146,12 +126,10 @@ void setupWeb() {
   server.on("/api/settings", HTTP_GET, handleApiSettingsGetRoute);
   server.on("/api/settings", HTTP_POST, handleApiSettingsPostRoute);
 
-  // Avvia Server Letale
   server.begin();
 }
 
 void handleWebTask() {
-  // Gestione asincrona della riconnessione WiFi senza bloccare mai il loop
   static unsigned long lastWifiCheck = 0;
   if (millis() - lastWifiCheck >= 5000) {
     lastWifiCheck = millis();
@@ -161,7 +139,6 @@ void handleWebTask() {
     }
   }
 
-  // Rispondiamo tramite web server solo se l'hardware è attualmente connesso
   if (WiFi.status() == WL_CONNECTED) {
     server.handleClient();
   }

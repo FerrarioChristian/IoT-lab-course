@@ -4,13 +4,7 @@
 // ==========================================
 // MACCHINA A STATI: STATO DEL SISTEMA
 // ==========================================
-enum SystemState {
-  ARMED, // Sistema attivo, monitora pre-allarmi (distanza) e allarmi (impatto)
-  DISARMED, // Sistema disattivo, non scatta alcun allarme, raccolta telemetria
-            // base
-  ALARM_ACTIVE // Allarme scattato per impatto, LED rosso fisso/buzzer. Richiede
-               // blocco.
-};
+enum SystemState { ARMED, DISARMED, ALARM_ACTIVE };
 
 extern volatile SystemState currentState;
 
@@ -26,7 +20,7 @@ enum PageState {
 extern volatile PageState currentPage;
 
 // ==========================================
-// DATI SENSORI
+// DATI SENSORI (Ricevuti via MQTT in futuro)
 // ==========================================
 struct SensorData {
   float temperature;
@@ -40,9 +34,8 @@ struct SensorData {
 extern volatile SensorData currentData;
 
 // ==========================================
-// FLAG PER INTERRUPTS
+// FLAG PER INTERRUPTS ENCODER
 // ==========================================
-extern volatile bool flagKnockDetected;
 extern volatile bool flagEncoderPressed;
 extern volatile int encoderCount;
 

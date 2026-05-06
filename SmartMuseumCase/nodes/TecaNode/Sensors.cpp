@@ -7,10 +7,11 @@
 DHT dht(PIN_DHT, DHT_TYPE);
 
 static unsigned long lastDhtRead = 0;
-const unsigned long dhtInterval = 3000; // DHT11 necessita 2 secondi tra letture
+const unsigned long dhtInterval =
+    3000; // DHT11 necessita almeno 2 secondi tra letture
 
 static unsigned long lastSonarTrig = 0;
-const unsigned long sonarInterval = 60; // Frequenza ping sonar (60ms)
+const unsigned long sonarInterval = 60;
 
 // Variabili per l'interrupt asincrono dell'HC-SR04
 volatile unsigned long echoStart = 0;
@@ -21,10 +22,8 @@ volatile bool echoReceived = false;
 // INTERRUPT SERVICE ROUTINES (ISRs)
 // ==========================================
 
-// ISR Sensore d'impatto (deve essere definita nella RAM)
 void ICACHE_RAM_ATTR handleKnockInterrupt() { flagKnockDetected = true; }
 
-// ISR per leggere il tempo di volo del suono asincronamente
 void ICACHE_RAM_ATTR handleEchoInterrupt() {
   if (digitalRead(PIN_HC_ECHO) == HIGH) {
     // Il segnale sale: parte l'onda sonora
@@ -43,8 +42,6 @@ void setupSensors() {
   // LDR Light Sensor Setup
   pinMode(PIN_LDR, INPUT);
 
-  // DHT11 Temperature and Humidity Sensor Setup
-  // Shock terapia per DHT11 "Blue Module":
   // In caso di riavvio software l'integrato si blocca (latch-up) aspettando un
   // fine transazione che non arriverà. Lo forziamo HIGH per 250ms per
   // resettargli la macchina a stati.
@@ -64,8 +61,6 @@ void setupSensors() {
   digitalWrite(PIN_HC_TRIG, LOW);
   pinMode(PIN_HC_ECHO, INPUT);
 
-  // Interrupt in CHANGE perché ci serve calcolare l'intervallo tra il fronte di
-  // salita e quello di discesa
   attachInterrupt(digitalPinToInterrupt(PIN_HC_ECHO), handleEchoInterrupt,
                   CHANGE);
 }
@@ -76,10 +71,6 @@ void setupSensors() {
 void taskSensori() {
   unsigned long currentMillis = millis();
 
-  // 1. LETTURA ANALOGICA LDR
-  // L'ADC dell'ESP8266 è condiviso con il modulo Wi-Fi per la calibrazione di
-  // potenza TX. Spammarlo a 100.000 hz nel loop causa il collasso delle
-  // performance radio (Pagine web lente)!
   static unsigned long lastLdrRead = 0;
   if (currentMillis - lastLdrRead >= 500) {
     lastLdrRead = currentMillis;
@@ -89,7 +80,6 @@ void taskSensori() {
   // 2. LETTURA DHT11
   if (currentMillis - lastDhtRead >= dhtInterval) {
     lastDhtRead = currentMillis;
-    // Le librerie moderne DHT hanno letture veloci senza blocchi prolungati
     float h = dht.readHumidity();
     float t = dht.readTemperature();
     if (!isnan(h) && !isnan(t)) {
@@ -101,23 +91,18 @@ void taskSensori() {
   }
 
   // 3. LETTURA HC-SR04 CON GESTIONE ASINCRONA
-  // Invia un impulso (Trigger) a intervalli regolari (non usiamo
-  // delayMicroseconds lunghi!)
+
   if (currentMillis - lastSonarTrig >= sonarInterval) {
     lastSonarTrig = currentMillis;
     digitalWrite(PIN_HC_TRIG, HIGH);
-    // Ritardo di soli 10 microsecondi è ininfluente per il server NodeMCU
     delayMicroseconds(10);
     digitalWrite(PIN_HC_TRIG, LOW);
   }
 
-  // Controllo l'arrivo dei dati dall'Interrupt
   if (echoReceived) {
     echoReceived = false;
     long duration = echoEnd - echoStart;
 
-    // Filtriamo letture scartinate dal rumore elettrico (23000ms corrispondono
-    // a ca. 4 metri, limite sensoristico)
     if (duration > 0) {
       float distance = (duration * 0.0343) / 2.0;
       currentData.distanceCm = distance;
