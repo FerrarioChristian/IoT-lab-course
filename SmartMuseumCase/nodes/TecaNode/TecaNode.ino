@@ -39,7 +39,7 @@ const char* thingDescription = R"rawliteral(
   "security": "nosec_sc",
   "properties": {
     "telemetry": {
-      "description": "Sensors telemetry: temperature, humidity, light, distance",
+      "description": "Sensors telemetry: temperature, humidity, light",
       "forms": [{"href": "mqtt://149.132.176.75/christianferrario/museum/teca01/telemetry"}]
     }
   },
@@ -48,6 +48,11 @@ const char* thingDescription = R"rawliteral(
       "description": "Fired when the knock sensor detects an impact.",
       "data": {"type": "boolean"},
       "forms": [{"href": "mqtt://149.132.176.75/christianferrario/museum/teca01/events/impact"}]
+    },
+    "visitorWarning": {
+      "description": "Fired when a visitor gets too close to the display case.",
+      "data": {"type": "boolean"},
+      "forms": [{"href": "mqtt://149.132.176.75/christianferrario/museum/teca01/events/warning"}]
     }
   }
 }
@@ -102,12 +107,39 @@ void loop() {
     String payload = "{";
     payload += "\"temperature\":" + String(currentData.temperature, 1) + ",";
     payload += "\"humidity\":" + String(currentData.humidity, 1) + ",";
-    payload += "\"lightLevel\":" + String(currentData.lightLevel) + ",";
-    payload += "\"distanceCm\":" + String(currentData.distanceCm, 1);
+    payload += "\"lightLevel\":" + String(currentData.lightLevel);
     payload += "}";
 
     Serial.println("Publishing telemetry: " + payload);
     mqttManager.publish(MQTT_TELEMETRY_TOPIC, payload.c_str());
+  }
+
+  // Controllo distanza (Event-Driven) con Debounce
+  static bool visitorTooClose = false;
+  static bool lastCondition = false;
+  static unsigned long lastDistanceChangeTime = 0;
+  const unsigned long distanceDebounceDelay = 1000; // 1 secondo di stabilità richiesta
+  
+  bool currentCondition = (currentData.distanceCm < thresh_distance_min);
+  
+  // Se la condizione grezza cambia (es. da lontano a vicino), resettiamo il timer
+  if (currentCondition != lastCondition) {
+    lastDistanceChangeTime = currentMillis;
+    lastCondition = currentCondition;
+  }
+  
+  // Se la condizione è rimasta stabile per il tempo di debounce
+  if ((currentMillis - lastDistanceChangeTime) > distanceDebounceDelay) {
+    if (currentCondition != visitorTooClose) {
+      visitorTooClose = currentCondition;
+      if (visitorTooClose) {
+        addLog("WARNING: Visitor too close.");
+        mqttManager.publish(MQTT_EVENT_WARNING_TOPIC, "true");
+      } else {
+        addLog("INFO: Visitor stepped back.");
+        mqttManager.publish(MQTT_EVENT_WARNING_TOPIC, "false");
+      }
+    }
   }
 
   // Controllo interrupt di Allarme (Knock Sensor)

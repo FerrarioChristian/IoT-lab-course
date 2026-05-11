@@ -43,6 +43,7 @@ extern int thresh_light_max;
 #define WOT_DISCOVERY_TOPIC "christianferrario/museum/discovery"
 #define MQTT_TELEMETRY_TOPIC "christianferrario/museum/teca01/telemetry"
 #define MQTT_EVENT_IMPACT_TOPIC "christianferrario/museum/teca01/events/impact"
+#define MQTT_EVENT_WARNING_TOPIC "christianferrario/museum/teca01/events/warning"
 #define MQTT_STATUS_TOPIC "christianferrario/museum/alarm01/status"
 
 #endif // CONFIG_H

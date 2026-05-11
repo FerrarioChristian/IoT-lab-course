@@ -105,7 +105,16 @@ void taskSensori() {
 
     if (duration > 0) {
       float distance = (duration * 0.0343) / 2.0;
-      currentData.distanceCm = distance;
+      
+      // Il sensore HC-SR04 ha un range di circa 2cm - 400cm.
+      // Tempi troppo brevi (sotto i 116us, ovvero < 2cm) spesso indicano 
+      // un errore di lettura o che non c'è nessun ostacolo (timeout dell'onda).
+      // Se fuori range, impostiamo una distanza altissima (es. 999) per non far scattare allarmi.
+      if (distance < 2.0 || distance > 400.0) {
+        currentData.distanceCm = 999.0;
+      } else {
+        currentData.distanceCm = distance;
+      }
     }
   }
 }

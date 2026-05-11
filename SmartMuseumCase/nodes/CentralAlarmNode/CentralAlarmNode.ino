@@ -58,6 +58,14 @@ void onMqttMessage(String &topic, String &payload) {
       currentState = ALARM_ACTIVE;
       Serial.println("!!! ALLARME INTRUSIONE RICEVUTO !!!");
     }
+  } else if (topic == MQTT_EVENT_WARNING_TOPIC) {
+    if (payload == "true") {
+      currentData.distanceCm = 1.0; // Valore fittizio per innescare l'UI warning
+      Serial.println("WARNING: Visitatore troppo vicino!");
+    } else {
+      currentData.distanceCm = 999.0; // Valore fittizio per resettare l'UI warning
+      Serial.println("INFO: Visitatore allontanato.");
+    }
   } else if (topic == MQTT_TELEMETRY_TOPIC) {
     // Parsing manuale del JSON per evitare dipendenze pesanti
     int tIdx = payload.indexOf("\"temperature\":");
@@ -67,10 +75,7 @@ void onMqttMessage(String &topic, String &payload) {
     if (hIdx > 0) currentData.humidity = payload.substring(hIdx + 11, payload.indexOf(",", hIdx)).toFloat();
 
     int lIdx = payload.indexOf("\"lightLevel\":");
-    if (lIdx > 0) currentData.lightLevel = payload.substring(lIdx + 13, payload.indexOf(",", lIdx)).toInt();
-
-    int dIdx = payload.indexOf("\"distanceCm\":");
-    if (dIdx > 0) currentData.distanceCm = payload.substring(dIdx + 13, payload.indexOf("}", dIdx)).toFloat();
+    if (lIdx > 0) currentData.lightLevel = payload.substring(lIdx + 13, payload.indexOf("}", lIdx)).toInt();
   }
 }
 
@@ -101,6 +106,7 @@ void setup() {
     // Iscrizione ai topic della teca
     mqttManager.subscribe(MQTT_TELEMETRY_TOPIC);
     mqttManager.subscribe(MQTT_EVENT_IMPACT_TOPIC);
+    mqttManager.subscribe(MQTT_EVENT_WARNING_TOPIC);
     Serial.println("Iscritto ai topic della teca.");
   }
 
@@ -122,6 +128,7 @@ void loop() {
   if (mqttManager.isConnected() && !wasConnected) {
       mqttManager.subscribe(MQTT_TELEMETRY_TOPIC);
       mqttManager.subscribe(MQTT_EVENT_IMPACT_TOPIC);
+      mqttManager.subscribe(MQTT_EVENT_WARNING_TOPIC);
       wasConnected = true;
   } else if (!mqttManager.isConnected()) {
       wasConnected = false;
