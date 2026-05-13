@@ -22,29 +22,20 @@
 // ==========================================
 #define DHT_TYPE DHT11
 
-// Variabili modificabili dalla dashboard (o via MQTT)
+// Variabili modificabili (ora via MQTT dal Master)
 extern float thresh_temp_max;
 extern float thresh_hum_max;
 extern int thresh_distance_min;
 extern int thresh_light_max;
 
 // ==========================================
-// WIFI CREDENTIALS
-// ==========================================
-// WiFi is now handled by WiFiManager (NetworkManager.h)
-
-// ==========================================
 // MQTT & WOT SETTINGS
 // ==========================================
 #define MQTT_BROKERIP "149.132.176.75"
-#define MQTT_CLIENTID "mqttx_886230node_teca"
 #define MQTT_USERNAME "ChristianFerrario"
 #define MQTT_PASSWORD "iot886230"
 
 #define WOT_DISCOVERY_TOPIC "christianferrario/museum/discovery"
-#define MQTT_TELEMETRY_TOPIC "christianferrario/museum/teca01/telemetry"
-#define MQTT_EVENT_IMPACT_TOPIC "christianferrario/museum/teca01/events/impact"
-#define MQTT_EVENT_WARNING_TOPIC "christianferrario/museum/teca01/events/warning"
-#define MQTT_STATUS_TOPIC "christianferrario/museum/teca01/status"
+#define MQTT_BASE_TOPIC "christianferrario/museum/"
 
 #endif // CONFIG_H

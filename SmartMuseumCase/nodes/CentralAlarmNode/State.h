@@ -1,10 +1,12 @@
 #ifndef STATE_H
 #define STATE_H
 
+#include <Arduino.h>
+
 // ==========================================
 // MACCHINA A STATI: STATO DEL SISTEMA
 // ==========================================
-enum SystemState { ARMED, DISARMED, ALARM_ACTIVE };
+enum SystemState { ARMED = 0, DISARMED = 1, ALARM_ACTIVE = 2 };
 
 extern volatile SystemState currentState;
 
@@ -12,26 +14,51 @@ extern volatile SystemState currentState;
 // STATO DELL'UI: PAGINE DISPLAY LCD
 // ==========================================
 enum PageState {
-  PAGE_ENV,      // 1. Temp / Hum / Light
-  PAGE_DISTANCE, // 2. Distanza / Stato sistema
-  PAGE_WIFI      // 3. Info Rete: WiFi / IP
+  STATE_OVERVIEW,
+  STATE_NODE_LIST,
+  STATE_NODE_DETAIL_1,
+  STATE_NODE_DETAIL_2
 };
 
 extern volatile PageState currentPage;
 
 // ==========================================
-// DATI SENSORI (Ricevuti via MQTT in futuro)
+// DATI SENSORI
 // ==========================================
 struct SensorData {
   float temperature;
   float humidity;
   int lightLevel;
   float distanceCm;
-  bool knockDetected;
-  int wifiRssi;
 };
 
-extern volatile SensorData currentData;
+// ==========================================
+// REGISTRO DEI NODI (Multi-Node Master)
+// ==========================================
+#define MAX_NODES 10
+
+struct Thresholds {
+  float tempMax;
+  float humMax;
+  int lightMax;
+  int distMin;
+};
+
+struct NodeState {
+  String id;
+  SensorData data;
+  SystemState state;
+  bool activeWarning;
+  unsigned long lastSeen;
+  Thresholds settings;
+  String alarmReason;
+};
+
+extern NodeState nodeRegistry[MAX_NODES];
+extern int activeNodeCount;
+
+// Indice del nodo attualmente visualizzato/selezionato nel menu
+extern int selectedNodeIndex;
 
 // ==========================================
 // FLAG PER INTERRUPTS ENCODER

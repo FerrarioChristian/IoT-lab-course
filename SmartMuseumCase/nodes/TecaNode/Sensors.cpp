@@ -1,8 +1,9 @@
 #include "Sensors.h"
 #include "Config.h"
 #include "State.h"
-#include "WebInterface.h"
 #include <DHT.h>
+
+extern void addLog(String msg);
 
 DHT dht(PIN_DHT, DHT_TYPE);
 
@@ -17,6 +18,7 @@ const unsigned long sonarInterval = 60;
 volatile unsigned long echoStart = 0;
 volatile unsigned long echoEnd = 0;
 volatile bool echoReceived = false;
+volatile bool isMeasuring = false;
 
 // ==========================================
 // INTERRUPT SERVICE ROUTINES (ISRs)
@@ -26,12 +28,21 @@ void ICACHE_RAM_ATTR handleKnockInterrupt() { flagKnockDetected = true; }
 
 void ICACHE_RAM_ATTR handleEchoInterrupt() {
   if (digitalRead(PIN_HC_ECHO) == HIGH) {
-    // Il segnale sale: parte l'onda sonora
-    echoStart = micros();
+    // Il segnale sale: se non stavamo già misurando, registriamo l'inizio
+    if (!isMeasuring) {
+      echoStart = micros();
+      isMeasuring = true;
+    }
   } else {
     // Il segnale scende: onda tornata
-    echoEnd = micros();
-    echoReceived = true;
+    if (isMeasuring) {
+      echoEnd = micros();
+      isMeasuring = false;
+      // Filtro antirimbalzo/rumore: ignoriamo impulsi microscopici (< 116us, ovvero < 2cm)
+      if (echoEnd - echoStart > 116) {
+        echoReceived = true;
+      }
+    }
   }
 }
 
@@ -94,6 +105,8 @@ void taskSensori() {
 
   if (currentMillis - lastSonarTrig >= sonarInterval) {
     lastSonarTrig = currentMillis;
+    isMeasuring = false;
+    echoReceived = false;
     digitalWrite(PIN_HC_TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(PIN_HC_TRIG, LOW);

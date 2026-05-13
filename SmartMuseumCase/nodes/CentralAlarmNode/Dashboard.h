@@ -226,54 +226,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             <h1>Smart Museum</h1>
             <p class="subtitle">Live Telemetry & Control Panel</p>
 
-            <div id="statusBadge" class="status-badge status-disarmed">
-                CONNESSIONE INCORSO...
-            </div>
-
-            <div class="grid">
-                <div class="card">
-                    <h3>Distanza</h3>
-                    <div class="value" id="val-dist">--<span class="unit">cm</span></div>
-                    <div class="threshold" id="th-dist">Min: -- cm</div>
-                </div>
-                <div class="card">
-                    <h3>Temperatura</h3>
-                    <div class="value" id="val-temp">--<span class="unit">°C</span></div>
-                    <div class="threshold" id="th-temp">Max: -- °C</div>
-                </div>
-                <div class="card">
-                    <h3>Umidità</h3>
-                    <div class="value" id="val-hum">--<span class="unit">%</span></div>
-                    <div class="threshold" id="th-hum">Max: -- %</div>
-                </div>
-                <div class="card">
-                    <h3>Luce</h3>
-                    <div class="value" id="val-light">--<span class="unit">lux</span></div>
-                    <div class="threshold" id="th-light">Max: -- val</div>
-                </div>
-            </div>
-
-            <div class="controls">
-                <button class="primary" onclick="sendCommand('ARM')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    Arma
-                </button>
-                <button onclick="sendCommand('DISARM')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Disarma
-                </button>
-                <button class="danger" onclick="sendCommand('MUTE')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"></path></svg>
-                    Silenzia
-                </button>
-                <button onclick="window.location.href='/settings'">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                    Impostazioni
-                </button>
-                <button onclick="window.location.href='/debug'">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                    Debug
-                </button>
+            <div id="nodes-container">
+                <!-- Nodi generati dinamicamente qui -->
             </div>
         </div>
     </div>
@@ -285,34 +239,73 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             try {
                 const response = await fetch('/api/data');
                 if(!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
+                const dataArray = await response.json(); 
                 
-                // Aggiorna valori
-                document.getElementById('val-temp').innerHTML = data.temp.toFixed(1) + '<span class="unit">°C</span>';
-                if(data.th_temp !== undefined) document.getElementById('th-temp').innerText = 'Max: ' + data.th_temp + ' °C';
+                const container = document.getElementById('nodes-container');
+                let html = '';
+                let globalDanger = false;
 
-                document.getElementById('val-hum').innerHTML = data.hum.toFixed(0) + '<span class="unit">%</span>';
-                if(data.th_hum !== undefined) document.getElementById('th-hum').innerText = 'Max: ' + data.th_hum + ' %';
+                dataArray.forEach(node => {
+                    let badgeClass = 'status-disarmed';
+                    let badgeText = 'SISTEMA DISARMATO';
+                    if (node.state === 'ALARM_ACTIVE') {
+                        badgeClass = 'status-alarm';
+                        badgeText = 'INTRUSIONE RILEVATA';
+                        globalDanger = true;
+                    } else if (node.state === 'ARMED') {
+                        badgeClass = 'status-armed';
+                        badgeText = 'SISTEMA ARMATO E SICURO';
+                    }
 
-                document.getElementById('val-dist').innerHTML = data.dist.toFixed(1) + '<span class="unit">cm</span>';
-                if(data.th_dist !== undefined) document.getElementById('th-dist').innerText = 'Min: ' + data.th_dist + ' cm';
+                    html += `
+                    <div style="margin-bottom: 4rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <h2 style="color: var(--accent); margin: 0;">Nodo: ${node.id}</h2>
+                            <button onclick="window.location.href='/settings?nodeId=${node.id}'" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Impostazioni</button>
+                        </div>
+                        <div class="status-badge ${badgeClass}" style="margin-bottom: 2rem;">${badgeText}</div>
+                        
+                        <div class="grid">
+                            <div class="card">
+                                <h3>Distanza</h3>
+                                <div class="value">${node.dist >= 999 ? '> 400' : node.dist.toFixed(1)}<span class="unit">cm</span></div>
+                            </div>
+                            <div class="card">
+                                <h3>Temperatura</h3>
+                                <div class="value">${node.temp.toFixed(1)}<span class="unit">°C</span></div>
+                            </div>
+                            <div class="card">
+                                <h3>Umidità</h3>
+                                <div class="value">${node.hum.toFixed(0)}<span class="unit">%</span></div>
+                            </div>
+                            <div class="card">
+                                <h3>Luce</h3>
+                                <div class="value">${node.light}<span class="unit">lux</span></div>
+                            </div>
+                        </div>
 
-                document.getElementById('val-light').innerHTML = data.light + '<span class="unit"> val</span>';
-                if(data.th_light !== undefined) document.getElementById('th-light').innerText = 'Max: ' + data.th_light + ' val';
+                        <div class="controls">
+                            <button class="primary" onclick="sendCommand('${node.id}', 'ARM')">Arma</button>
+                            <button onclick="sendCommand('${node.id}', 'DISARM')">Disarma</button>
+                            <button class="danger" onclick="sendCommand('${node.id}', 'MUTE')">Silenzia</button>
+                        </div>
+                    </div>`;
+                });
 
-                // Gestione Visiva dello Stato
-                const badge = document.getElementById('statusBadge');
-                if (data.state === 'ALARM_ACTIVE') {
-                    badge.className = 'status-badge status-alarm';
-                    badge.innerText = 'INTRUSIONE RILEVATA';
-                    document.body.classList.add('danger-bg');
-                } else if (data.state === 'ARMED') {
-                    badge.className = 'status-badge status-armed';
-                    badge.innerText = 'SISTEMA ARMATO E SICURO';
-                    document.body.classList.remove('danger-bg');
+                if (dataArray.length === 0) {
+                    html = '<p class="subtitle">Nessun nodo rilevato. In attesa di telemetria...</p>';
                 } else {
-                    badge.className = 'status-badge status-disarmed';
-                    badge.innerText = 'SISTEMA DISARMATO';
+                    html += `
+                    <div class="controls" style="margin-top: 2rem; justify-content: center; width: 100%;">
+                        <button onclick="window.location.href='/debug'">Console Debug</button>
+                    </div>`;
+                }
+
+                container.innerHTML = html;
+
+                if (globalDanger) {
+                    document.body.classList.add('danger-bg');
+                } else {
                     document.body.classList.remove('danger-bg');
                 }
 
@@ -321,15 +314,14 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             }
         }
 
-        async function sendCommand(command) {
+        async function sendCommand(nodeId, command) {
             try {
                 const res = await fetch('/api/action', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'cmd=' + command
+                    body: 'cmd=' + command + '&nodeId=' + nodeId
                 });
                 if(res.ok) {
-                    // Forza fetch immediato per snappiness
                     fetchTelemetry();
                 } else {
                     alert("Errore invio comando");
@@ -339,9 +331,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
             }
         }
 
-        // Avvio ciclo infinito asincrono
         setInterval(fetchTelemetry, UPDATE_INTERVAL);
-        fetchTelemetry(); // Init immediato
+        fetchTelemetry(); 
     </script>
 </body>
 </html>
@@ -353,14 +344,13 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impostazioni Soglie</title>
+    <title>Impostazioni Soglie Nodo</title>
     <style>
         :root {
             --bg: #09090b;
             --panel: rgba(24, 24, 27, 0.8);
             --border: rgba(255, 255, 255, 0.08);
             --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.4);
             --text: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -395,6 +385,11 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
             background: linear-gradient(135deg, #a5b4fc, #6366f1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+        h2 {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
         }
         .form-group {
             margin-bottom: 1.5rem;
@@ -452,7 +447,8 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
 <body>
     <div class="container">
         <div class="glass-panel">
-            <h1>Impostazioni Soglie</h1>
+            <h1>Impostazioni</h1>
+            <h2 id="node-title">Nodo: --</h2>
             <div class="form-group">
                 <label>Distanza Minima Allarme (cm)</label>
                 <input type="number" id="dist" step="1">
@@ -476,9 +472,20 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
         </div>
     </div>
     <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const nodeId = urlParams.get('nodeId');
+        
+        if (!nodeId) {
+            alert("Nessun nodo selezionato!");
+            window.location.href = '/';
+        }
+
+        document.getElementById('node-title').innerText = "Nodo: " + nodeId;
+
         async function fetchSettings() {
             try {
-                const response = await fetch('/api/settings');
+                const response = await fetch('/api/settings?nodeId=' + nodeId);
+                if (!response.ok) throw new Error("Errore fetch");
                 const data = await response.json();
                 document.getElementById('dist').value = data.dist;
                 document.getElementById('light').value = data.light;
@@ -490,6 +497,7 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
         }
         async function salvaImpostazioni() {
             const formData = new URLSearchParams();
+            formData.append('nodeId', nodeId);
             formData.append('dist', document.getElementById('dist').value);
             formData.append('light', document.getElementById('light').value);
             formData.append('hum', document.getElementById('hum').value);
@@ -502,7 +510,8 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
                     body: formData.toString()
                 });
                 if(res.ok) {
-                    alert("Impostazioni salvate con successo!");
+                    alert("Impostazioni salvate con successo per " + nodeId);
+                    window.location.href = '/';
                 } else {
                     alert("Errore salvataggio!");
                 }

@@ -2,6 +2,7 @@
 #include "State.h"
 #include "Display.h"
 #include "Actuators.h"
+#include "WebInterface.h"
 
 #include "NetworkManager.h"
 #include "MqttManager.h"
@@ -9,17 +10,18 @@
 // ==========================================
 // ISTANZIAZIONE VARIABILI GLOBALI
 // ==========================================
-volatile SystemState currentState = ARMED;
-volatile PageState currentPage = PAGE_WIFI;
+volatile SystemState currentState = ARMED; // Stato globale dell'Allarme
+volatile PageState currentPage = STATE_OVERVIEW;
 
-// Dati ricevuti dalle teche per poterli visualizzare sul display
-volatile SensorData currentData = {0.0, 0.0, 0, 0.0, false, 0};
+NodeState nodeRegistry[MAX_NODES];
+int activeNodeCount = 0;
+int selectedNodeIndex = 0;
 
 volatile bool flagKnockDetected = false;
 volatile bool flagEncoderPressed = false;
 volatile int encoderCount = 0;
 
-// Valori predefiniti delle soglie (aggiornabili)
+// Valori predefiniti delle soglie (aggiornabili da Web)
 float thresh_temp_max = 30.0;
 float thresh_hum_max = 60.0;
 int thresh_distance_min = 10;
@@ -47,35 +49,84 @@ const char* thingDescription = R"rawliteral(
 }
 )rawliteral";
 
+// Funzione helper per trovare o creare un nodo nel registro
+int getNodeIndex(String id) {
+  for (int i = 0; i < activeNodeCount; i++) {
+    if (nodeRegistry[i].id == id) {
+      nodeRegistry[i].lastSeen = millis();
+      return i;
+    }
+  }
+  if (activeNodeCount < MAX_NODES) {
+    nodeRegistry[activeNodeCount].id = id;
+    nodeRegistry[activeNodeCount].state = ARMED;
+    nodeRegistry[activeNodeCount].activeWarning = false;
+    nodeRegistry[activeNodeCount].alarmReason = "";
+    nodeRegistry[activeNodeCount].data.distanceCm = 999.0;
+    nodeRegistry[activeNodeCount].lastSeen = millis();
+    // Default thresholds for new nodes
+    nodeRegistry[activeNodeCount].settings.tempMax = 30.0;
+    nodeRegistry[activeNodeCount].settings.humMax = 60.0;
+    nodeRegistry[activeNodeCount].settings.lightMax = 999;
+    nodeRegistry[activeNodeCount].settings.distMin = 10;
+    activeNodeCount++;
+    return activeNodeCount - 1;
+  }
+  return -1; // Registro pieno
+}
+
 // ==========================================
 // MQTT CALLBACK
 // ==========================================
 void onMqttMessage(String &topic, String &payload) {
-  Serial.println("Ricevuto msg su " + topic + ": " + payload);
-  
-  if (topic == MQTT_EVENT_IMPACT_TOPIC) {
+  // Serial.println("Msg su " + topic + ": " + payload);
+
+  // topic example: christianferrario/museum/teca_1A2B3C/telemetry
+  int baseLen = String(MQTT_BASE_TOPIC).length();
+  int nextSlash = topic.indexOf('/', baseLen);
+  if (nextSlash == -1) return;
+
+  String nodeId = topic.substring(baseLen, nextSlash);
+  String subTopic = topic.substring(nextSlash + 1);
+
+  int idx = getNodeIndex(nodeId);
+  if (idx == -1) return; // Ignore se il registro è pieno
+
+  if (subTopic == "events/impact") {
     if (payload == "true") {
-      currentState = ALARM_ACTIVE;
-      Serial.println("!!! ALLARME INTRUSIONE RICEVUTO !!!");
+      nodeRegistry[idx].state = ALARM_ACTIVE;
+      nodeRegistry[idx].alarmReason = "IMPACT";
+      Serial.println("!!! ALLARME INTRUSIONE DA " + nodeId + " !!!");
     }
-  } else if (topic == MQTT_EVENT_WARNING_TOPIC) {
+  } else if (subTopic == "events/fire") {
     if (payload == "true") {
-      currentData.distanceCm = 1.0; // Valore fittizio per innescare l'UI warning
-      Serial.println("WARNING: Visitatore troppo vicino!");
+      nodeRegistry[idx].state = ALARM_ACTIVE;
+      nodeRegistry[idx].alarmReason = "FIRE";
+      Serial.println("!!! ALLARME INCENDIO DA " + nodeId + " !!!");
+    }
+  } else if (subTopic == "events/warning") {
+    if (payload == "true") {
+      nodeRegistry[idx].activeWarning = true;
+      nodeRegistry[idx].data.distanceCm = 1.0; // Valore fittizio per forzare warning visivo
     } else {
-      currentData.distanceCm = 999.0; // Valore fittizio per resettare l'UI warning
-      Serial.println("INFO: Visitatore allontanato.");
+      nodeRegistry[idx].activeWarning = false;
+      nodeRegistry[idx].data.distanceCm = 999.0;
     }
-  } else if (topic == MQTT_TELEMETRY_TOPIC) {
-    // Parsing manuale del JSON per evitare dipendenze pesanti
+  } else if (subTopic == "telemetry") {
     int tIdx = payload.indexOf("\"temperature\":");
-    if (tIdx > 0) currentData.temperature = payload.substring(tIdx + 14, payload.indexOf(",", tIdx)).toFloat();
+    if (tIdx > 0) nodeRegistry[idx].data.temperature = payload.substring(tIdx + 14, payload.indexOf(",", tIdx)).toFloat();
     
     int hIdx = payload.indexOf("\"humidity\":");
-    if (hIdx > 0) currentData.humidity = payload.substring(hIdx + 11, payload.indexOf(",", hIdx)).toFloat();
+    if (hIdx > 0) nodeRegistry[idx].data.humidity = payload.substring(hIdx + 11, payload.indexOf(",", hIdx)).toFloat();
 
     int lIdx = payload.indexOf("\"lightLevel\":");
-    if (lIdx > 0) currentData.lightLevel = payload.substring(lIdx + 13, payload.indexOf("}", lIdx)).toInt();
+    if (lIdx > 0) nodeRegistry[idx].data.lightLevel = payload.substring(lIdx + 13, payload.indexOf(",", lIdx)).toInt();
+
+    int dIdx = payload.indexOf("\"distanceCm\":");
+    if (dIdx > 0) nodeRegistry[idx].data.distanceCm = payload.substring(dIdx + 13, payload.indexOf(",", dIdx)).toFloat();
+
+    int sIdx = payload.indexOf("\"currentState\":");
+    if (sIdx > 0) nodeRegistry[idx].state = (SystemState)payload.substring(sIdx + 15, payload.indexOf("}", sIdx)).toInt();
   }
 }
 
@@ -90,10 +141,10 @@ void setup() {
   setupActuators();
   setupDisplay(); // Inizializza l'I2C e l'LCD subito
   
-  // Mostra il messaggio a schermo prima di bloccare il processo nella ricerca Wi-Fi
   showSetupMessage("Alarm-Setup-01");
-
   networkManager.connect("Alarm-Setup-01");
+
+  setupWeb(); // Inizializza il Web Server Master
 
   mqttManager.setWill(MQTT_STATUS_TOPIC, "offline", true, 1);
   mqttManager.setup();
@@ -103,16 +154,15 @@ void setup() {
     mqttManager.publish(MQTT_STATUS_TOPIC, "online", true, 1);
     mqttManager.publish(WOT_DISCOVERY_TOPIC, thingDescription, true, 1);
     
-    // Iscrizione ai topic della teca
-    mqttManager.subscribe(MQTT_TELEMETRY_TOPIC);
-    mqttManager.subscribe(MQTT_EVENT_IMPACT_TOPIC);
-    mqttManager.subscribe(MQTT_EVENT_WARNING_TOPIC);
-    Serial.println("Iscritto ai topic della teca.");
+    mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
+    mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
+    mqttManager.subscribe(MQTT_WILDCARD_FIRE);
+    mqttManager.subscribe(MQTT_WILDCARD_WARNING);
+    Serial.println("Iscritto ai topic wildcard.");
   }
 
   Serial.println("==== CENTRAL ALARM BOOT ====");
-  Serial.println("Hardware NodeMCU inizializzato con successo.");
-
+  Serial.println("Master NodeMCU inizializzato con successo.");
   currentState = ARMED;
 }
 
@@ -121,41 +171,72 @@ void setup() {
 // ==========================================
 void loop() {
   taskDisplay();
+  handleWebTask();
   mqttManager.loop();
 
-  // Assicurati che le iscrizioni vengano ripristinate se il broker si disconnette e riconnette
+  // Re-subscribe if needed
   static bool wasConnected = true;
   if (mqttManager.isConnected() && !wasConnected) {
-      mqttManager.subscribe(MQTT_TELEMETRY_TOPIC);
-      mqttManager.subscribe(MQTT_EVENT_IMPACT_TOPIC);
-      mqttManager.subscribe(MQTT_EVENT_WARNING_TOPIC);
+      mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
+      mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
+      mqttManager.subscribe(MQTT_WILDCARD_FIRE);
+      mqttManager.subscribe(MQTT_WILDCARD_WARNING);
       wasConnected = true;
   } else if (!mqttManager.isConnected()) {
       wasConnected = false;
   }
 
-  // --- LOGICA ATTUATORI ---
-  bool isAlarm = (currentState == ALARM_ACTIVE);
-  bool isWarning =
-      (currentState == ARMED && currentData.distanceCm > 0 && currentData.distanceCm < thresh_distance_min) ||
-      (currentData.temperature > thresh_temp_max) ||
-      (currentData.humidity > thresh_hum_max) ||
-      (currentData.lightLevel > thresh_light_max);
+  // --- LOGICA ATTUATORI GLOBALI ---
+  bool globalAlarm = false;
+  bool globalWarning = false;
 
-  if (isAlarm) {
+  for (int i = 0; i < activeNodeCount; i++) {
+    if (nodeRegistry[i].state == ALARM_ACTIVE) {
+      globalAlarm = true;
+    }
+    if (nodeRegistry[i].activeWarning || 
+        nodeRegistry[i].data.temperature > nodeRegistry[i].settings.tempMax || 
+        nodeRegistry[i].data.humidity > nodeRegistry[i].settings.humMax || 
+        nodeRegistry[i].data.lightLevel > nodeRegistry[i].settings.lightMax) {
+      globalWarning = true;
+    }
+  }
+
+  if (globalAlarm) {
+    currentState = ALARM_ACTIVE;
     playAlarm();
-  } else if (isWarning) {
+  } else if (globalWarning) {
+    currentState = ARMED;
     playWarning();
   } else {
+    currentState = ARMED;
     stopActuators();
   }
 
-  // Controllo bottone encoder
+  // Controllo bottone encoder (Mute globale locale o navigazione UI)
   if (flagEncoderPressed) {
     flagEncoderPressed = false;
+    // Se c'è un allarme, mutiamo tutti i nodi
     if (currentState == ALARM_ACTIVE) {
-      currentState = ARMED; // Muta allarme
-      Serial.println("ALARM_ACK: Silenced by local hardware button.");
+      for (int i = 0; i < activeNodeCount; i++) {
+        if (nodeRegistry[i].state == ALARM_ACTIVE) {
+          String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
+          mqttManager.publish(topic.c_str(), "MUTE");
+        }
+      }
+      currentState = ARMED;
+      Serial.println("ALARM_ACK: Allarmi silenziati da pulsante locale.");
+    } else {
+      // Navigazione menu
+      if (currentPage == STATE_OVERVIEW) {
+        if (activeNodeCount > 0) currentPage = STATE_NODE_LIST;
+      } else if (currentPage == STATE_NODE_LIST) {
+        currentPage = STATE_NODE_DETAIL_1;
+      } else if (currentPage == STATE_NODE_DETAIL_1 || currentPage == STATE_NODE_DETAIL_2) {
+        currentPage = STATE_OVERVIEW;
+      }
+      extern unsigned long lastDisplayUpdate;
+      lastDisplayUpdate = 0; // forza redraw
     }
   }
 }

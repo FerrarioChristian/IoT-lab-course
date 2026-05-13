@@ -41,9 +41,13 @@ extern int thresh_light_max;
 #define MQTT_PASSWORD "iot886230"
 
 #define WOT_DISCOVERY_TOPIC "christianferrario/museum/discovery"
-#define MQTT_TELEMETRY_TOPIC "christianferrario/museum/teca01/telemetry"
-#define MQTT_EVENT_IMPACT_TOPIC "christianferrario/museum/teca01/events/impact"
-#define MQTT_EVENT_WARNING_TOPIC "christianferrario/museum/teca01/events/warning"
+#define MQTT_BASE_TOPIC "christianferrario/museum/"
 #define MQTT_STATUS_TOPIC "christianferrario/museum/alarm01/status"
+
+// Wildcard subscriptions for tracking all teca nodes
+#define MQTT_WILDCARD_TELEMETRY "christianferrario/museum/+/telemetry"
+#define MQTT_WILDCARD_IMPACT "christianferrario/museum/+/events/impact"
+#define MQTT_WILDCARD_FIRE "christianferrario/museum/+/events/fire"
+#define MQTT_WILDCARD_WARNING "christianferrario/museum/+/events/warning"
 
 #endif // CONFIG_H

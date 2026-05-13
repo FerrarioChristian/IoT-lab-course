@@ -19,9 +19,9 @@ const unsigned long displayInterval = 1000;
 // ==========================================
 void ICACHE_RAM_ATTR handleEncoderInterrupt() {
   if (digitalRead(PIN_ENC_DT) == HIGH) {
-    encoderCount++;
-  } else {
     encoderCount--;
+  } else {
+    encoderCount++;
   }
 }
 
@@ -33,79 +33,82 @@ void ICACHE_RAM_ATTR handleEncoderButton() {
 // ==========================================
 // FUNZIONI HELPERS LCD
 // ==========================================
-void drawPageEnv() {
-  lcd.setCursor(0, 0);
-  lcd.print("T:");
-  lcd.print(currentData.temperature, 1);
-  lcd.print("C H:");
-  lcd.print(currentData.humidity, 0);
-  lcd.print("%  "); // Spazi per overwrite sporco precedente
-
-  lcd.setCursor(0, 1);
-  lcd.print("Light:");
-  lcd.print(currentData.lightLevel);
-  lcd.print("         "); // Cancella ghost char
-}
-
-void drawPageDistance() {
-  lcd.setCursor(0, 0);
-  lcd.print("Dist: ");
-  lcd.print(currentData.distanceCm, 1);
-  lcd.print(" cm     ");
-
-  lcd.setCursor(0, 1);
-  if (currentState == ARMED) {
-    lcd.print("State: ARMED    ");
-  } else if (currentState == DISARMED) {
-    lcd.print("State: DISARMED ");
-  } else {
-    lcd.print("!! ALARM !!     ");
-  }
-}
-
-void drawPageWiFi() {
-  lcd.setCursor(0, 0);
-  lcd.print("WiFi: ");
-  if (WiFi.status() == WL_CONNECTED) {
-    lcd.print("Connected ");
-  } else {
-    lcd.print("Disconn.  ");
-  }
-
-  lcd.setCursor(0, 1);
-  if (WiFi.status() == WL_CONNECTED) {
-    lcd.print(WiFi.localIP().toString());
-    lcd.print("     ");
-  } else {
-    lcd.print("IP: Waiting...  ");
-  }
-}
-
 void updateDisplay() {
   noInterrupts();
   lcd.clear();
   switch (currentPage) {
-  case PAGE_ENV:
-    drawPageEnv();
+  case STATE_OVERVIEW:
+    lcd.setCursor(0, 0);
+    lcd.print("Nodes: ");
+    lcd.print(activeNodeCount);
+    lcd.setCursor(0, 1);
+    if (WiFi.status() == WL_CONNECTED) {
+      lcd.print(WiFi.localIP().toString());
+    } else {
+      lcd.print("No WiFi");
+    }
     break;
-  case PAGE_DISTANCE:
-    drawPageDistance();
+  case STATE_NODE_LIST:
+    lcd.setCursor(0, 0);
+    lcd.print("Select Node:");
+    lcd.setCursor(0, 1);
+    if (activeNodeCount > 0) {
+      lcd.print("> ");
+      lcd.print(nodeRegistry[selectedNodeIndex].id);
+    } else {
+      lcd.print("No nodes");
+    }
     break;
-  case PAGE_WIFI:
-    drawPageWiFi();
+  case STATE_NODE_DETAIL_1:
+    if (activeNodeCount > 0) {
+      lcd.setCursor(0, 0);
+      lcd.print(nodeRegistry[selectedNodeIndex].id);
+      lcd.print(" (1/2) ");
+      lcd.setCursor(0, 1);
+      lcd.print("T:");
+      lcd.print(nodeRegistry[selectedNodeIndex].data.temperature, 1);
+      lcd.print(" H:");
+      lcd.print(nodeRegistry[selectedNodeIndex].data.humidity, 0);
+      lcd.print("       ");
+    }
+    break;
+  case STATE_NODE_DETAIL_2:
+    if (activeNodeCount > 0) {
+      lcd.setCursor(0, 0);
+      lcd.print(nodeRegistry[selectedNodeIndex].id);
+      lcd.print(" (2/2) ");
+      lcd.setCursor(0, 1);
+      lcd.print("L:");
+      lcd.print(nodeRegistry[selectedNodeIndex].data.lightLevel);
+      lcd.print(" D:");
+      float d = nodeRegistry[selectedNodeIndex].data.distanceCm;
+      if (d >= 999.0)
+        lcd.print(">400");
+      else
+        lcd.print(d, 1);
+      lcd.print("      ");
+    }
     break;
   }
   interrupts();
 }
 
 void changePage(int direction) {
-  int next = (int)currentPage + direction;
-  if (next > 2)
-    next = 0;
-  if (next < 0)
-    next = 2;
-  currentPage = (PageState)next;
-
+  if (activeNodeCount > 0) {
+    if (currentPage == STATE_NODE_LIST) {
+      selectedNodeIndex += direction;
+      if (selectedNodeIndex >= activeNodeCount)
+        selectedNodeIndex = 0;
+      if (selectedNodeIndex < 0)
+        selectedNodeIndex = activeNodeCount - 1;
+    } else if (currentPage == STATE_NODE_DETAIL_1 ||
+               currentPage == STATE_NODE_DETAIL_2) {
+      if (currentPage == STATE_NODE_DETAIL_1 && direction > 0)
+        currentPage = STATE_NODE_DETAIL_2;
+      else if (currentPage == STATE_NODE_DETAIL_2 && direction < 0)
+        currentPage = STATE_NODE_DETAIL_1;
+    }
+  }
   lastDisplayUpdate = 0;
 }
 
@@ -135,7 +138,7 @@ void recoverI2C() {
 
 void setupDisplay() {
   recoverI2C();
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL); // Passiamo i pin esplicitamente
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   Wire.setClock(100000);
   Wire.setClockStretchLimit(2000);
 
@@ -162,7 +165,7 @@ void setupDisplay() {
                   FALLING);
 }
 
-void showSetupMessage(const char* apName) {
+void showSetupMessage(const char *apName) {
   noInterrupts();
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -182,50 +185,75 @@ void taskDisplay() {
     else
       changePage(-1);
     localLastCount = encoderCount;
-    Serial.println("Rotary moved! Value: " + String(encoderCount));
+    Serial.println("Rotary moved! Index: " + String(selectedNodeIndex));
   }
 
   if (currentMillis - lastDisplayUpdate >= displayInterval) {
     lastDisplayUpdate = currentMillis;
 
     if (currentState == ALARM_ACTIVE) {
+      String alarmingNode = "Unknown";
+      String reason = "IMPACT";
+      for (int i = 0; i < activeNodeCount; i++) {
+        if (nodeRegistry[i].state == ALARM_ACTIVE) {
+          alarmingNode = nodeRegistry[i].id;
+          if (nodeRegistry[i].alarmReason != "") {
+             reason = nodeRegistry[i].alarmReason;
+          }
+        }
+      }
       noInterrupts();
       lcd.setCursor(0, 0);
-      lcd.print(" !! INTRUSION !!");
+      lcd.print("! ALARM: ");
+      lcd.print(reason);
+      lcd.print("      "); // Pad to clear line
       lcd.setCursor(0, 1);
-      lcd.print("  Press button  ");
-      interrupts();
-    } else if (currentState == ARMED &&
-               currentData.distanceCm > 0 && currentData.distanceCm < thresh_distance_min) {
-      noInterrupts();
-      lcd.setCursor(0, 0);
-      lcd.print("  !! WARNING !! ");
-      lcd.setCursor(0, 1);
-      lcd.print("   Step back    ");
-      interrupts();
-    } else if (currentData.temperature > thresh_temp_max) {
-      noInterrupts();
-      lcd.setCursor(0, 0);
-      lcd.print("  !! ALERT !!   ");
-      lcd.setCursor(0, 1);
-      lcd.print("High Temperature");
-      interrupts();
-    } else if (currentData.humidity > thresh_hum_max) {
-      noInterrupts();
-      lcd.setCursor(0, 0);
-      lcd.print("  !! ALERT !!   ");
-      lcd.setCursor(0, 1);
-      lcd.print(" High Humidity  ");
-      interrupts();
-    } else if (currentData.lightLevel > thresh_light_max) {
-      noInterrupts();
-      lcd.setCursor(0, 0);
-      lcd.print("  !! ALERT !!   ");
-      lcd.setCursor(0, 1);
-      lcd.print("  Excess Light  ");
+      lcd.print(alarmingNode + "                "); // Pad to clear line
       interrupts();
     } else {
-      updateDisplay();
+      // Check if any node is in warning state
+      bool isWarning = false;
+      String warningNode = "";
+      String warningReason = "";
+      for (int i = 0; i < activeNodeCount; i++) {
+        if (nodeRegistry[i].activeWarning) {
+          isWarning = true;
+          warningNode = nodeRegistry[i].id;
+          warningReason = "PROXIMITY";
+          break;
+        } else if (nodeRegistry[i].data.temperature >
+                   nodeRegistry[i].settings.tempMax) {
+          isWarning = true;
+          warningNode = nodeRegistry[i].id;
+          warningReason = "HI-TEMP";
+          break;
+        } else if (nodeRegistry[i].data.humidity >
+                   nodeRegistry[i].settings.humMax) {
+          isWarning = true;
+          warningNode = nodeRegistry[i].id;
+          warningReason = "HI-HUM";
+          break;
+        } else if (nodeRegistry[i].data.lightLevel >
+                   nodeRegistry[i].settings.lightMax) {
+          isWarning = true;
+          warningNode = nodeRegistry[i].id;
+          warningReason = "HI-LIGHT";
+          break;
+        }
+      }
+
+      if (isWarning) {
+        noInterrupts();
+        lcd.setCursor(0, 0);
+        lcd.print("! WARN: ");
+        lcd.print(warningReason);
+        lcd.print("        "); // Pad to clear line
+        lcd.setCursor(0, 1);
+        lcd.print(warningNode + "                "); // Pad to clear line
+        interrupts();
+      } else {
+        updateDisplay();
+      }
     }
   }
 }
