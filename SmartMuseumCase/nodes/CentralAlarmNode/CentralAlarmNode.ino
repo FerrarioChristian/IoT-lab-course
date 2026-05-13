@@ -222,9 +222,13 @@ void loop() {
         if (nodeRegistry[i].state == ALARM_ACTIVE) {
           String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
           mqttManager.publish(topic.c_str(), "MUTE");
+          // Reset immediato dello stato locale per evitare loop dell'allarme in attesa della telemetria
+          nodeRegistry[i].state = ARMED;
+          nodeRegistry[i].alarmReason = "";
         }
       }
       currentState = ARMED;
+      stopActuators();
       Serial.println("ALARM_ACK: Allarmi silenziati da pulsante locale.");
     } else {
       // Navigazione menu

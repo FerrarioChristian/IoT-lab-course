@@ -4,13 +4,7 @@
 #include <Arduino.h>
 #include "Config.h"
 
-// Struttura per contenere i dati del sensore di fiamma
-struct SensorData {
-  int flameAnalogLevel;
-  bool isFlameDetected;
-};
-
-extern volatile SensorData currentData;
+extern volatile bool flagFireDetected;
 
 void setupSensors();
 void taskSensori();

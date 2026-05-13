@@ -10,16 +10,9 @@
 // ISTANZIAZIONE VARIABILI GLOBALI
 // ==========================================
 volatile SystemState currentState = ARMED;
-volatile SensorData currentData = {0, false};
-
-// Valori predefiniti delle soglie
-int thresh_flame_analog_max = 500;
 
 NetworkManager networkManager;
 MqttManager* mqttManager;
-
-unsigned long lastTelemetryPublish = 0;
-const unsigned long telemetryInterval = 5000;
 
 // Variabili dinamiche
 String nodeId;
@@ -72,7 +65,6 @@ void setup() {
 
   // Generazione Topic dinamici
   String baseTopic = String(MQTT_BASE_TOPIC) + nodeId + "/";
-  topicTelemetry = baseTopic + "telemetry";
   // Usiamo topicFire per un allarme incendio specifico
   topicFire = baseTopic + "events/fire"; 
   topicStatus = baseTopic + "status";
@@ -85,12 +77,6 @@ void setup() {
   thingDescription += "  \"title\": \"Smart Museum Fire Node (" + nodeId + ")\",\n";
   thingDescription += "  \"securityDefinitions\": { \"nosec_sc\": { \"scheme\": \"nosec\" } },\n";
   thingDescription += "  \"security\": \"nosec_sc\",\n";
-  thingDescription += "  \"properties\": {\n";
-  thingDescription += "    \"telemetry\": {\n";
-  thingDescription += "      \"description\": \"Flame sensor telemetry\",\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicTelemetry + "\"}]\n";
-  thingDescription += "    }\n";
-  thingDescription += "  },\n";
   thingDescription += "  \"events\": {\n";
   thingDescription += "    \"fireDetected\": {\n";
   thingDescription += "      \"description\": \"Triggered when fire is detected\",\n";
@@ -143,41 +129,19 @@ void loop() {
       wasConnected = false;
   }
 
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastTelemetryPublish >= telemetryInterval) {
-    lastTelemetryPublish = currentMillis;
-    
-    String payload = "{";
-    payload += "\"flameAnalog\":" + String(currentData.flameAnalogLevel) + ",";
-    payload += "\"flameDetected\":" + String(currentData.isFlameDetected ? "true" : "false") + ",";
-    payload += "\"currentState\":" + String(currentState);
-    payload += "}";
-
-    // Serial.println("Publishing telemetry: " + payload);
-    mqttManager->publish(topicTelemetry.c_str(), payload.c_str());
-  }
-
   // ==========================================
   // EVENT-DRIVEN LOGIC: FIRE ALARM
   // ==========================================
-  // Usa un semplice debouncer per evitare falsi allarmi
-  static unsigned long lastFireDetectTime = 0;
-  static bool lastFireState = false;
-  
-  if (currentData.isFlameDetected && currentState == ARMED) {
-    if (!lastFireState) {
-      lastFireDetectTime = currentMillis;
-      lastFireState = true;
-    }
+  // L'allarme scatta istantaneamente flaggato dall'interrupt
+  if (flagFireDetected) {
+    flagFireDetected = false; // Reset flag
     
-    if (currentMillis - lastFireDetectTime > 500) { // 500ms di conferma continua
+    if (currentState == ARMED) {
       currentState = ALARM_ACTIVE;
-      addLog("FIRE EMERGENCY: Flame detected!");
+      addLog("FIRE EMERGENCY: Flame detected via Hardware Interrupt!");
       
-      // Invio messaggio al nuovo topic specifico per il fuoco
+      // Invio messaggio istantaneo MQTT
       mqttManager->publish(topicFire.c_str(), "true");
     }
-  } else {
-    lastFireState = false;
   }
 }
