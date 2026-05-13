@@ -71,29 +71,34 @@ void setup() {
   topicCmd = baseTopic + "actions/cmd";
 
   // Generazione Thing Description
-  thingDescription = "{\n";
-  thingDescription += "  \"@context\": \"https://www.w3.org/2022/wot/td/v1.1\",\n";
-  thingDescription += "  \"id\": \"urn:dev:mac:" + nodeId + "\",\n";
-  thingDescription += "  \"title\": \"Smart Museum Fire Node (" + nodeId + ")\",\n";
-  thingDescription += "  \"securityDefinitions\": { \"nosec_sc\": { \"scheme\": \"nosec\" } },\n";
-  thingDescription += "  \"security\": \"nosec_sc\",\n";
-  thingDescription += "  \"properties\": {\n";
-  thingDescription += "    \"flameAnalog\": {\"type\": \"integer\"}\n";
-  thingDescription += "  },\n";
-  thingDescription += "  \"events\": {\n";
-  thingDescription += "    \"fireDetected\": {\n";
-  thingDescription += "      \"description\": \"Triggered when fire is detected\",\n";
-  thingDescription += "      \"data\": {\"type\": \"boolean\"},\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicFire + "\"}]\n";
-  thingDescription += "    }\n";
-  thingDescription += "  },\n";
-  thingDescription += "  \"actions\": {\n";
-  thingDescription += "    \"cmd\": {\n";
-  thingDescription += "      \"description\": \"Send ARM, DISARM, or MUTE\",\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicCmd + "\"}]\n";
-  thingDescription += "    }\n";
-  thingDescription += "  }\n";
-  thingDescription += "}";
+  thingDescription = R"json({
+  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+  "id": "urn:dev:mac:{{NODE_ID}}",
+  "title": "Smart Museum Fire Node ({{NODE_ID}})",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "properties": {
+    "flameAnalog": {"type": "integer"}
+  },
+  "events": {
+    "fireDetected": {
+      "description": "Triggered when fire is detected",
+      "data": {"type": "boolean"},
+      "forms": [{"href": "mqtt://{{BROKER_IP}}/{{TOPIC_FIRE}}"}]
+    }
+  },
+  "actions": {
+    "cmd": {
+      "description": "Send ARM, DISARM, or MUTE",
+      "forms": [{"href": "mqtt://{{BROKER_IP}}/{{TOPIC_CMD}}"}]
+    }
+  }
+})json";
+
+  thingDescription.replace("{{NODE_ID}}", nodeId);
+  thingDescription.replace("{{BROKER_IP}}", String(MQTT_BROKERIP));
+  thingDescription.replace("{{TOPIC_FIRE}}", topicFire);
+  thingDescription.replace("{{TOPIC_CMD}}", topicCmd);
 
   // Setup MQTT
   mqttManager = new MqttManager(MQTT_BROKERIP, clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);

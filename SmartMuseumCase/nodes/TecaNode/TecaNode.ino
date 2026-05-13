@@ -92,35 +92,41 @@ void setup() {
   topicSettingsDist = baseTopic + "settings/distance";
 
   // Generazione Thing Description
-  thingDescription = "{\n";
-  thingDescription += "  \"@context\": \"https://www.w3.org/2022/wot/td/v1.1\",\n";
-  thingDescription += "  \"id\": \"urn:dev:mac:" + nodeId + "\",\n";
-  thingDescription += "  \"title\": \"Smart Museum Display Case (" + nodeId + ")\",\n";
-  thingDescription += "  \"securityDefinitions\": { \"nosec_sc\": { \"scheme\": \"nosec\" } },\n";
-  thingDescription += "  \"security\": \"nosec_sc\",\n";
-  thingDescription += "  \"properties\": {\n";
-  thingDescription += "    \"temperature\": {\"type\": \"number\"},\n";
-  thingDescription += "    \"humidity\": {\"type\": \"number\"},\n";
-  thingDescription += "    \"lightLevel\": {\"type\": \"integer\"},\n";
-  thingDescription += "    \"distanceCm\": {\"type\": \"number\"}\n";
-  thingDescription += "  },\n";
-  thingDescription += "  \"events\": {\n";
-  thingDescription += "    \"impactDetected\": {\n";
-  thingDescription += "      \"data\": {\"type\": \"boolean\"},\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicImpact + "\"}]\n";
-  thingDescription += "    },\n";
-  thingDescription += "    \"visitorWarning\": {\n";
-  thingDescription += "      \"data\": {\"type\": \"boolean\"},\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicWarning + "\"}]\n";
-  thingDescription += "    }\n";
-  thingDescription += "  },\n";
-  thingDescription += "  \"actions\": {\n";
-  thingDescription += "    \"cmd\": {\n";
-  thingDescription += "      \"description\": \"Send ARM, DISARM, or MUTE\",\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicCmd + "\"}]\n";
-  thingDescription += "    }\n";
-  thingDescription += "  }\n";
-  thingDescription += "}";
+  thingDescription = R"json({
+  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+  "id": "urn:dev:mac:{{NODE_ID}}",
+  "title": "Smart Museum Display Case ({{NODE_ID}})",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "properties": {
+    "temperature": {"type": "number"},
+    "humidity": {"type": "number"},
+    "lightLevel": {"type": "integer"},
+    "distanceCm": {"type": "number"}
+  },
+  "events": {
+    "impactDetected": {
+      "data": {"type": "boolean"},
+      "forms": [{"href": "mqtt://{{BROKER_IP}}/{{TOPIC_IMPACT}}"}]
+    },
+    "visitorWarning": {
+      "data": {"type": "boolean"},
+      "forms": [{"href": "mqtt://{{BROKER_IP}}/{{TOPIC_WARNING}}"}]
+    }
+  },
+  "actions": {
+    "cmd": {
+      "description": "Send ARM, DISARM, or MUTE",
+      "forms": [{"href": "mqtt://{{BROKER_IP}}/{{TOPIC_CMD}}"}]
+    }
+  }
+})json";
+
+  thingDescription.replace("{{NODE_ID}}", nodeId);
+  thingDescription.replace("{{BROKER_IP}}", String(MQTT_BROKERIP));
+  thingDescription.replace("{{TOPIC_IMPACT}}", topicImpact);
+  thingDescription.replace("{{TOPIC_WARNING}}", topicWarning);
+  thingDescription.replace("{{TOPIC_CMD}}", topicCmd);
 
   // Setup MQTT
   mqttManager = new MqttManager(MQTT_BROKERIP, clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
