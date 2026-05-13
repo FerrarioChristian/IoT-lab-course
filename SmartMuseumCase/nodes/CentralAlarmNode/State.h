@@ -30,6 +30,7 @@ struct SensorData {
   float humidity;
   int lightLevel;
   float distanceCm;
+  int flameAnalog;
 };
 
 // ==========================================
@@ -44,6 +45,17 @@ struct Thresholds {
   int distMin;
 };
 
+struct NodeCapabilities {
+  bool hasTemperature;
+  bool hasHumidity;
+  bool hasLight;
+  bool hasDistance;
+  bool hasFlame;
+  bool hasImpactEvent;
+  bool hasFireEvent;
+  bool hasWarningEvent;
+};
+
 struct NodeState {
   String id;
   SensorData data;
@@ -52,6 +64,7 @@ struct NodeState {
   unsigned long lastSeen;
   Thresholds settings;
   String alarmReason;
+  NodeCapabilities capabilities;
 };
 
 extern NodeState nodeRegistry[MAX_NODES];

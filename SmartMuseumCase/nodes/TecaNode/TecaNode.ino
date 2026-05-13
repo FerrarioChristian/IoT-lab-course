@@ -99,10 +99,10 @@ void setup() {
   thingDescription += "  \"securityDefinitions\": { \"nosec_sc\": { \"scheme\": \"nosec\" } },\n";
   thingDescription += "  \"security\": \"nosec_sc\",\n";
   thingDescription += "  \"properties\": {\n";
-  thingDescription += "    \"telemetry\": {\n";
-  thingDescription += "      \"description\": \"Sensors telemetry\",\n";
-  thingDescription += "      \"forms\": [{\"href\": \"mqtt://" + String(MQTT_BROKERIP) + "/" + topicTelemetry + "\"}]\n";
-  thingDescription += "    }\n";
+  thingDescription += "    \"temperature\": {\"type\": \"number\"},\n";
+  thingDescription += "    \"humidity\": {\"type\": \"number\"},\n";
+  thingDescription += "    \"lightLevel\": {\"type\": \"integer\"},\n";
+  thingDescription += "    \"distanceCm\": {\"type\": \"number\"}\n";
   thingDescription += "  },\n";
   thingDescription += "  \"events\": {\n";
   thingDescription += "    \"impactDetected\": {\n";

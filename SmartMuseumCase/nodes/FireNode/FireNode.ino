@@ -77,6 +77,9 @@ void setup() {
   thingDescription += "  \"title\": \"Smart Museum Fire Node (" + nodeId + ")\",\n";
   thingDescription += "  \"securityDefinitions\": { \"nosec_sc\": { \"scheme\": \"nosec\" } },\n";
   thingDescription += "  \"security\": \"nosec_sc\",\n";
+  thingDescription += "  \"properties\": {\n";
+  thingDescription += "    \"flameAnalog\": {\"type\": \"integer\"}\n";
+  thingDescription += "  },\n";
   thingDescription += "  \"events\": {\n";
   thingDescription += "    \"fireDetected\": {\n";
   thingDescription += "      \"description\": \"Triggered when fire is detected\",\n";

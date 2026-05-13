@@ -110,6 +110,15 @@ void handleApiDataRoute() {
     jsonString += "\"hum\":" + String(nodeRegistry[i].data.humidity) + ",";
     jsonString += "\"light\":" + String(nodeRegistry[i].data.lightLevel) + ",";
     jsonString += "\"dist\":" + String(nodeRegistry[i].data.distanceCm) + ",";
+    jsonString += "\"flame\":" + String(nodeRegistry[i].data.flameAnalog) + ",";
+
+    jsonString += "\"caps\":{";
+    jsonString += "\"temp\":" + String(nodeRegistry[i].capabilities.hasTemperature ? "true" : "false") + ",";
+    jsonString += "\"hum\":" + String(nodeRegistry[i].capabilities.hasHumidity ? "true" : "false") + ",";
+    jsonString += "\"light\":" + String(nodeRegistry[i].capabilities.hasLight ? "true" : "false") + ",";
+    jsonString += "\"dist\":" + String(nodeRegistry[i].capabilities.hasDistance ? "true" : "false") + ",";
+    jsonString += "\"flame\":" + String(nodeRegistry[i].capabilities.hasFlame ? "true" : "false");
+    jsonString += "},";
 
     String stateStr;
     if (nodeRegistry[i].state == ARMED)

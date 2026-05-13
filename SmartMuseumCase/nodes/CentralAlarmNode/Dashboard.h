@@ -257,6 +257,47 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                         badgeText = 'SISTEMA ARMATO E SICURO';
                     }
 
+                    let cardsHtml = '';
+                    if (node.caps.dist) {
+                        cardsHtml += `
+                        <div class="card">
+                            <h3>Distanza</h3>
+                            <div class="value">${node.dist >= 999 ? '> 400' : node.dist.toFixed(1)}<span class="unit">cm</span></div>
+                        </div>`;
+                    }
+                    if (node.caps.temp) {
+                        cardsHtml += `
+                        <div class="card">
+                            <h3>Temperatura</h3>
+                            <div class="value">${node.temp.toFixed(1)}<span class="unit">°C</span></div>
+                        </div>`;
+                    }
+                    if (node.caps.hum) {
+                        cardsHtml += `
+                        <div class="card">
+                            <h3>Umidità</h3>
+                            <div class="value">${node.hum.toFixed(0)}<span class="unit">%</span></div>
+                        </div>`;
+                    }
+                    if (node.caps.light) {
+                        cardsHtml += `
+                        <div class="card">
+                            <h3>Luce</h3>
+                            <div class="value">${node.light}<span class="unit">lux</span></div>
+                        </div>`;
+                    }
+                    if (node.caps.flame) {
+                        cardsHtml += `
+                        <div class="card">
+                            <h3>Fiamma (Sensore)</h3>
+                            <div class="value">${node.flame}</div>
+                        </div>`;
+                    }
+
+                    if (cardsHtml === '') {
+                        cardsHtml = '<p style="color: var(--text-muted); text-align: center; width: 100%;">In attesa di Thing Description...</p>';
+                    }
+
                     html += `
                     <div style="margin-bottom: 4rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
@@ -266,22 +307,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"=====(
                         <div class="status-badge ${badgeClass}" style="margin-bottom: 2rem;">${badgeText}</div>
                         
                         <div class="grid">
-                            <div class="card">
-                                <h3>Distanza</h3>
-                                <div class="value">${node.dist >= 999 ? '> 400' : node.dist.toFixed(1)}<span class="unit">cm</span></div>
-                            </div>
-                            <div class="card">
-                                <h3>Temperatura</h3>
-                                <div class="value">${node.temp.toFixed(1)}<span class="unit">°C</span></div>
-                            </div>
-                            <div class="card">
-                                <h3>Umidità</h3>
-                                <div class="value">${node.hum.toFixed(0)}<span class="unit">%</span></div>
-                            </div>
-                            <div class="card">
-                                <h3>Luce</h3>
-                                <div class="value">${node.light}<span class="unit">lux</span></div>
-                            </div>
+                            ${cardsHtml}
                         </div>
 
                         <div class="controls">

@@ -65,10 +65,19 @@ void updateDisplay() {
       lcd.print(nodeRegistry[selectedNodeIndex].id);
       lcd.print(" (1/2) ");
       lcd.setCursor(0, 1);
-      lcd.print("T:");
-      lcd.print(nodeRegistry[selectedNodeIndex].data.temperature, 1);
-      lcd.print(" H:");
-      lcd.print(nodeRegistry[selectedNodeIndex].data.humidity, 0);
+      
+      if (nodeRegistry[selectedNodeIndex].capabilities.hasTemperature) {
+        lcd.print("T:");
+        lcd.print(nodeRegistry[selectedNodeIndex].data.temperature, 1);
+        lcd.print(" ");
+      }
+      if (nodeRegistry[selectedNodeIndex].capabilities.hasHumidity) {
+        lcd.print("H:");
+        lcd.print(nodeRegistry[selectedNodeIndex].data.humidity, 0);
+      }
+      if (!nodeRegistry[selectedNodeIndex].capabilities.hasTemperature && !nodeRegistry[selectedNodeIndex].capabilities.hasHumidity) {
+        lcd.print("N/A");
+      }
       lcd.print("       ");
     }
     break;
@@ -78,14 +87,26 @@ void updateDisplay() {
       lcd.print(nodeRegistry[selectedNodeIndex].id);
       lcd.print(" (2/2) ");
       lcd.setCursor(0, 1);
-      lcd.print("L:");
-      lcd.print(nodeRegistry[selectedNodeIndex].data.lightLevel);
-      lcd.print(" D:");
-      float d = nodeRegistry[selectedNodeIndex].data.distanceCm;
-      if (d >= 999.0)
-        lcd.print(">400");
-      else
-        lcd.print(d, 1);
+      
+      if (nodeRegistry[selectedNodeIndex].capabilities.hasFlame) {
+        lcd.print("FLM:");
+        lcd.print(nodeRegistry[selectedNodeIndex].data.flameAnalog);
+      } else {
+        if (nodeRegistry[selectedNodeIndex].capabilities.hasLight) {
+          lcd.print("L:");
+          lcd.print(nodeRegistry[selectedNodeIndex].data.lightLevel);
+          lcd.print(" ");
+        }
+        if (nodeRegistry[selectedNodeIndex].capabilities.hasDistance) {
+          lcd.print("D:");
+          float d = nodeRegistry[selectedNodeIndex].data.distanceCm;
+          if (d >= 999.0) lcd.print(">400");
+          else lcd.print(d, 1);
+        }
+        if (!nodeRegistry[selectedNodeIndex].capabilities.hasLight && !nodeRegistry[selectedNodeIndex].capabilities.hasDistance) {
+          lcd.print("N/A");
+        }
+      }
       lcd.print("      ");
     }
     break;

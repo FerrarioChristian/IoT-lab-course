@@ -6,6 +6,7 @@
 
 #include "NetworkManager.h"
 #include "MqttManager.h"
+#include <ArduinoJson.h>
 
 // ==========================================
 // ISTANZIAZIONE VARIABILI GLOBALI
@@ -69,6 +70,10 @@ int getNodeIndex(String id) {
     nodeRegistry[activeNodeCount].settings.humMax = 60.0;
     nodeRegistry[activeNodeCount].settings.lightMax = 999;
     nodeRegistry[activeNodeCount].settings.distMin = 10;
+    
+    // Inizializza tutte le capabilities a false per sicurezza
+    nodeRegistry[activeNodeCount].capabilities = {false, false, false, false, false, false, false, false};
+    
     activeNodeCount++;
     return activeNodeCount - 1;
   }
@@ -80,6 +85,35 @@ int getNodeIndex(String id) {
 // ==========================================
 void onMqttMessage(String &topic, String &payload) {
   // Serial.println("Msg su " + topic + ": " + payload);
+
+  // WoT Discovery Topic per parsing dinamico
+  if (topic == WOT_DISCOVERY_TOPIC) {
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) {
+      String urnId = doc["id"].as<String>();
+      if (urnId.startsWith("urn:dev:mac:")) {
+        String nodeId = urnId.substring(12);
+        int idx = getNodeIndex(nodeId);
+        if (idx != -1) {
+          nodeRegistry[idx].capabilities.hasTemperature = doc["properties"].containsKey("temperature");
+          nodeRegistry[idx].capabilities.hasHumidity = doc["properties"].containsKey("humidity");
+          nodeRegistry[idx].capabilities.hasLight = doc["properties"].containsKey("lightLevel");
+          nodeRegistry[idx].capabilities.hasDistance = doc["properties"].containsKey("distanceCm");
+          nodeRegistry[idx].capabilities.hasFlame = doc["properties"].containsKey("flameAnalog");
+          
+          nodeRegistry[idx].capabilities.hasImpactEvent = doc["events"].containsKey("impactDetected");
+          nodeRegistry[idx].capabilities.hasFireEvent = doc["events"].containsKey("fireDetected");
+          nodeRegistry[idx].capabilities.hasWarningEvent = doc["events"].containsKey("visitorWarning");
+          
+          Serial.println(">>> WoT TD Parsed for " + nodeId + " <<<");
+        }
+      }
+    } else {
+      Serial.println("Error parsing TD: " + String(error.c_str()));
+    }
+    return; // Non processare come normale topic di telemetria
+  }
 
   // topic example: christianferrario/museum/teca_1A2B3C/telemetry
   int baseLen = String(MQTT_BASE_TOPIC).length();
@@ -125,6 +159,9 @@ void onMqttMessage(String &topic, String &payload) {
     int dIdx = payload.indexOf("\"distanceCm\":");
     if (dIdx > 0) nodeRegistry[idx].data.distanceCm = payload.substring(dIdx + 13, payload.indexOf(",", dIdx)).toFloat();
 
+    int fIdx = payload.indexOf("\"flameAnalog\":");
+    if (fIdx > 0) nodeRegistry[idx].data.flameAnalog = payload.substring(fIdx + 14, payload.indexOf(",", fIdx)).toInt();
+
     int sIdx = payload.indexOf("\"currentState\":");
     if (sIdx > 0) nodeRegistry[idx].state = (SystemState)payload.substring(sIdx + 15, payload.indexOf("}", sIdx)).toInt();
   }
@@ -154,6 +191,7 @@ void setup() {
     mqttManager.publish(MQTT_STATUS_TOPIC, "online", true, 1);
     mqttManager.publish(WOT_DISCOVERY_TOPIC, thingDescription, true, 1);
     
+    mqttManager.subscribe(WOT_DISCOVERY_TOPIC); // Sottoscriviti per le TDs degli altri
     mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
     mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
     mqttManager.subscribe(MQTT_WILDCARD_FIRE);
@@ -177,6 +215,7 @@ void loop() {
   // Re-subscribe if needed
   static bool wasConnected = true;
   if (mqttManager.isConnected() && !wasConnected) {
+      mqttManager.subscribe(WOT_DISCOVERY_TOPIC);
       mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
       mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
       mqttManager.subscribe(MQTT_WILDCARD_FIRE);
