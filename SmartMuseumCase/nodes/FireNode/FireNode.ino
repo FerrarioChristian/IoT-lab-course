@@ -21,6 +21,7 @@ String topicTelemetry;
 String topicFire; 
 String topicStatus;
 String topicCmd;
+String topicDiscovery;
 String thingDescription;
 
 void addLog(String msg) {
@@ -44,6 +45,9 @@ void onMqttMessage(String &topic, String &payload) {
       currentState = ARMED;
       addLog("ALARM_ACK: Silenced via MQTT.");
     }
+  } else if (topic == "christianferrario/museum/system/discovery_request") {
+    addLog("Ricevuta richiesta di discovery dal Master, invio TD...");
+    mqttManager->publish(topicDiscovery.c_str(), thingDescription.c_str());
   }
 }
 
@@ -68,6 +72,7 @@ void setup() {
   topicFire = baseTopic + "events/fire"; 
   topicStatus = baseTopic + "status";
   topicCmd = baseTopic + "actions/cmd";
+  topicDiscovery = baseTopic + "discovery";
 
   // Generazione Thing Description
   thingDescription = R"json({
@@ -107,8 +112,10 @@ void setup() {
 
   if (mqttManager->isConnected()) {
     mqttManager->publish(topicStatus.c_str(), "online", true, 1);
-    mqttManager->publish(WOT_DISCOVERY_TOPIC, thingDescription.c_str(), true, 1);
+    mqttManager->publish(topicDiscovery.c_str(), thingDescription.c_str());
     mqttManager->subscribe(topicCmd.c_str());
+    mqttManager->subscribe("christianferrario/museum/system/discovery_request");
+    addLog("Inviato stato online e sottoscritto ai topic.");
   }
 
   setupSensors();

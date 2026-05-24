@@ -34,6 +34,7 @@ String topicWarning;
 String topicStatus;
 String topicCmd;
 String topicSettingsDist;
+String topicDiscovery;
 String thingDescription;
 
 void addLog(String msg) {
@@ -60,6 +61,9 @@ void onMqttMessage(String &topic, String &payload) {
   } else if (topic == topicSettingsDist) {
     thresh_distance_min = payload.toInt();
     addLog("Soglia distanza aggiornata a: " + String(thresh_distance_min) + " cm");
+  } else if (topic == "christianferrario/museum/system/discovery_request") {
+    addLog("Ricevuta richiesta di discovery dal Master, invio TD...");
+    mqttManager->publish(topicDiscovery.c_str(), thingDescription.c_str());
   }
 }
 
@@ -90,6 +94,7 @@ void setup() {
   topicStatus = baseTopic + "status";
   topicCmd = baseTopic + "actions/cmd";
   topicSettingsDist = baseTopic + "settings/distance";
+  topicDiscovery = baseTopic + "discovery";
 
   // Generazione Thing Description
   thingDescription = R"json({
@@ -136,9 +141,11 @@ void setup() {
 
   if (mqttManager->isConnected()) {
     mqttManager->publish(topicStatus.c_str(), "online", true, 1);
-    mqttManager->publish(WOT_DISCOVERY_TOPIC, thingDescription.c_str(), true, 1);
+    mqttManager->publish(topicDiscovery.c_str(), thingDescription.c_str());
     mqttManager->subscribe(topicCmd.c_str());
     mqttManager->subscribe(topicSettingsDist.c_str());
+    mqttManager->subscribe("christianferrario/museum/system/discovery_request");
+    addLog("Inviato stato online e sottoscritto ai topic di comando.");
   }
 
   setupSensors();

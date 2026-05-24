@@ -40,7 +40,8 @@ extern int thresh_light_max;
 #define MQTT_USERNAME "ChristianFerrario"
 #define MQTT_PASSWORD "iot886230"
 
-#define WOT_DISCOVERY_TOPIC "christianferrario/museum/discovery"
+#define MQTT_WILDCARD_DISCOVERY "christianferrario/museum/+/discovery"
+#define MQTT_SYSTEM_REQUEST "christianferrario/museum/system/discovery_request"
 #define MQTT_BASE_TOPIC "christianferrario/museum/"
 #define MQTT_STATUS_TOPIC "christianferrario/museum/central_alarm/status"
 
