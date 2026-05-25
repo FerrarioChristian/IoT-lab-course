@@ -9,7 +9,7 @@ void NetworkManager::connect(const char *apName) {
   WiFiManager wifiManager;
 
   // Uncomment and run it once, if you want to erase all the stored information
-  wifiManager.resetSettings();
+  //wifiManager.resetSettings();
 
   // fetches ssid and pass from eeprom and tries to connect
   // if it does not connect it starts an access point with the specified name

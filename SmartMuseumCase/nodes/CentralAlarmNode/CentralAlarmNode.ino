@@ -37,14 +37,14 @@ MqttManager mqttManager(MQTT_BROKERIP, MQTT_CLIENTID, MQTT_USERNAME, MQTT_PASSWO
 const char* thingDescription = R"rawliteral(
 {
   "@context": "https://www.w3.org/2022/wot/td/v1.1",
-  "id": "urn:dev:mac:alarm_01",
-  "title": "Central Alarm Panel 01",
+  "id": "urn:dev:mac:central_alarm",
+  "title": "Central Alarm Panel",
   "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
   "security": "nosec_sc",
   "properties": {
     "status": {
       "type": "string",
-      "forms": [{"href": "mqtt://149.132.176.75/christianferrario/museum/alarm01/status"}]
+      "forms": [{"href": "mqtt://149.132.176.75/christianferrario/museum/central_alarm/status"}]
     }
   }
 }
@@ -92,6 +92,8 @@ void onMqttMessage(String &topic, String &payload) {
       String urnId = doc["id"].as<String>();
       if (urnId.startsWith("urn:dev:mac:")) {
         String nodeId = urnId.substring(12);
+        if (nodeId == "central_alarm") return; // Ignora la propria Thing Description
+        
         int idx = getNodeIndex(nodeId);
         if (idx != -1) {
           nodeRegistry[idx].capabilities.hasTemperature = doc["properties"].containsKey("temperature");
@@ -119,12 +121,30 @@ void onMqttMessage(String &topic, String &payload) {
   if (nextSlash == -1) return;
 
   String nodeId = topic.substring(baseLen, nextSlash);
+  if (nodeId == "central_alarm") return; // Ignora i messaggi provenienti da se stesso
+
   String subTopic = topic.substring(nextSlash + 1);
 
   int idx = getNodeIndex(nodeId);
   if (idx == -1) return; 
 
-  if (subTopic == "events/impact") {
+  if (subTopic == "status") {
+    if (payload == "offline") {
+      Serial.println("!!! NODO DISCONNESSO: " + nodeId + " !!!");
+      
+      // Rimuovi il nodo traslando gli elementi successivi verso sinistra
+      for (int i = idx; i < activeNodeCount - 1; i++) {
+        nodeRegistry[i] = nodeRegistry[i + 1];
+      }
+      activeNodeCount--;
+      
+      // Correggi l'indice del display se puntava al nodo eliminato (o oltre)
+      if (selectedNodeIndex >= activeNodeCount) {
+        selectedNodeIndex = activeNodeCount > 0 ? activeNodeCount - 1 : 0;
+      }
+      return; // Nodo rimosso, non c'è altro da fare
+    }
+  } else if (subTopic == "events/impact") {
     if (payload == "true") {
       nodeRegistry[idx].state = ALARM_ACTIVE;
       nodeRegistry[idx].alarmReason = "IMPACT";
@@ -176,8 +196,8 @@ void setup() {
   setupActuators();
   setupDisplay(); // Inizializza l'I2C e l'LCD subito
   
-  showSetupMessage("Alarm-Setup-01");
-  networkManager.connect("Alarm-Setup-01");
+  showSetupMessage("CentralAlarm-Setup");
+  networkManager.connect("CentralAlarm-Setup");
 
   setupWeb(); // Inizializza il Web Server Master
 
@@ -194,6 +214,7 @@ void setup() {
     mqttManager.subscribe(MQTT_WILDCARD_IMPACT, 1); // QoS 1 per allarmi
     mqttManager.subscribe(MQTT_WILDCARD_FIRE, 1);   // QoS 1 per allarmi
     mqttManager.subscribe(MQTT_WILDCARD_WARNING, 1);
+    mqttManager.subscribe(MQTT_WILDCARD_STATUS, 1); // QoS 1 per LWT
     Serial.println("Iscritto ai topic wildcard.");
   }
 
@@ -218,6 +239,7 @@ void loop() {
       mqttManager.subscribe(MQTT_WILDCARD_IMPACT, 1);
       mqttManager.subscribe(MQTT_WILDCARD_FIRE, 1);
       mqttManager.subscribe(MQTT_WILDCARD_WARNING, 1);
+      mqttManager.subscribe(MQTT_WILDCARD_STATUS, 1);
       wasConnected = true;
   } else if (!mqttManager.isConnected()) {
       wasConnected = false;
