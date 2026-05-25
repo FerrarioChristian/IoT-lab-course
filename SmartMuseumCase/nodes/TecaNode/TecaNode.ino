@@ -201,10 +201,10 @@ void loop() {
       visitorTooClose = currentCondition;
       if (visitorTooClose) {
         addLog("WARNING: Visitor too close.");
-        mqttManager->publish(topicWarning.c_str(), "true");
+        mqttManager->publish(topicWarning.c_str(), "true", false, 1);
       } else {
         addLog("INFO: Visitor stepped back.");
-        mqttManager->publish(topicWarning.c_str(), "false");
+        mqttManager->publish(topicWarning.c_str(), "false", false, 1);
       }
     }
   }
@@ -215,7 +215,7 @@ void loop() {
     if (currentState == ARMED) {
       currentState = ALARM_ACTIVE;
       addLog("INTRUSION: Knock sensor hardware triggered.");
-      mqttManager->publish(topicImpact.c_str(), "true");
+      mqttManager->publish(topicImpact.c_str(), "true", false, 1);
     }
   }
 }

@@ -84,8 +84,6 @@ int getNodeIndex(String id) {
 // MQTT CALLBACK
 // ==========================================
 void onMqttMessage(String &topic, String &payload) {
-  // Serial.println("Msg su " + topic + ": " + payload);
-
   // WoT Discovery Topic per parsing dinamico
   if (topic == WOT_DISCOVERY_TOPIC) {
     StaticJsonDocument<1024> doc;
@@ -124,7 +122,7 @@ void onMqttMessage(String &topic, String &payload) {
   String subTopic = topic.substring(nextSlash + 1);
 
   int idx = getNodeIndex(nodeId);
-  if (idx == -1) return; // Ignore se il registro è pieno
+  if (idx == -1) return; 
 
   if (subTopic == "events/impact") {
     if (payload == "true") {
@@ -193,9 +191,9 @@ void setup() {
     
     mqttManager.subscribe(WOT_DISCOVERY_TOPIC); // Sottoscriviti per le TDs degli altri
     mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
-    mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
-    mqttManager.subscribe(MQTT_WILDCARD_FIRE);
-    mqttManager.subscribe(MQTT_WILDCARD_WARNING);
+    mqttManager.subscribe(MQTT_WILDCARD_IMPACT, 1); // QoS 1 per allarmi
+    mqttManager.subscribe(MQTT_WILDCARD_FIRE, 1);   // QoS 1 per allarmi
+    mqttManager.subscribe(MQTT_WILDCARD_WARNING, 1);
     Serial.println("Iscritto ai topic wildcard.");
   }
 
@@ -217,9 +215,9 @@ void loop() {
   if (mqttManager.isConnected() && !wasConnected) {
       mqttManager.subscribe(WOT_DISCOVERY_TOPIC);
       mqttManager.subscribe(MQTT_WILDCARD_TELEMETRY);
-      mqttManager.subscribe(MQTT_WILDCARD_IMPACT);
-      mqttManager.subscribe(MQTT_WILDCARD_FIRE);
-      mqttManager.subscribe(MQTT_WILDCARD_WARNING);
+      mqttManager.subscribe(MQTT_WILDCARD_IMPACT, 1);
+      mqttManager.subscribe(MQTT_WILDCARD_FIRE, 1);
+      mqttManager.subscribe(MQTT_WILDCARD_WARNING, 1);
       wasConnected = true;
   } else if (!mqttManager.isConnected()) {
       wasConnected = false;

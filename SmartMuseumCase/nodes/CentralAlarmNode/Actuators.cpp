@@ -5,16 +5,15 @@ static bool isBuzzing = false;
 static unsigned int currentFreq = 0;
 
 void setRGB(int r, int g, int b) {
-  // Supponendo LED RGB a catodo comune.
-  // Se è ad anodo comune, usa (255 - r) ecc.
   analogWrite(PIN_LED_R, r);
   analogWrite(PIN_LED_G, g);
   analogWrite(PIN_LED_B, b);
 }
 
 void setupActuators() {
-  pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, LOW);
+  // Inizializza il buzzer come INPUT (High-Impedance) invece che OUTPUT LOW.
+  // Questo previene i ronzii causati dai picchi di assorbimento
+  pinMode(PIN_BUZZER, INPUT);
 
   pinMode(PIN_LED_R, OUTPUT);
   pinMode(PIN_LED_G, OUTPUT);
@@ -24,7 +23,7 @@ void setupActuators() {
 
 void playAlarm() {
   unsigned long currentMillis = millis();
-  
+
   // Sirena bitonale
   unsigned int freq = ((currentMillis / 300) % 2 == 0) ? 1200 : 800;
   if (freq != currentFreq) {

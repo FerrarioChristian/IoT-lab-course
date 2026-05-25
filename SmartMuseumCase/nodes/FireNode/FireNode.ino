@@ -65,7 +65,6 @@ void setup() {
 
   // Generazione Topic dinamici
   String baseTopic = String(MQTT_BASE_TOPIC) + nodeId + "/";
-  // Usiamo topicFire per un allarme incendio specifico
   topicFire = baseTopic + "events/fire"; 
   topicStatus = baseTopic + "status";
   topicCmd = baseTopic + "actions/cmd";
@@ -148,8 +147,8 @@ void loop() {
       currentState = ALARM_ACTIVE;
       addLog("FIRE EMERGENCY: Flame detected via Hardware Interrupt!");
       
-      // Invio messaggio istantaneo MQTT
-      mqttManager->publish(topicFire.c_str(), "true");
+      // Invio messaggio istantaneo MQTT con QoS 1 per affidabilità
+      mqttManager->publish(topicFire.c_str(), "true", false, 1);
     }
   }
 }
