@@ -40,6 +40,12 @@ extern int thresh_light_max;
 #define MQTT_USERNAME "ChristianFerrario"
 #define MQTT_PASSWORD "iot886230"
 
+// ==========================================
+// TELEGRAM BOT SETTINGS
+// ==========================================
+#define TELEGRAM_BOT_TOKEN "8698223563:AAGT7JGU09vo1RuOGWZHt_plOX02FU4ZRkc"
+#define TELEGRAM_CHAT_ID "511487944"
+
 #define MQTT_WILDCARD_DISCOVERY "christianferrario/museum/+/discovery"
 #define MQTT_SYSTEM_REQUEST "christianferrario/museum/system/discovery_request"
 #define MQTT_BASE_TOPIC "christianferrario/museum/"

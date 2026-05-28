@@ -6,6 +6,7 @@
 
 #include "NetworkManager.h"
 #include "MqttManager.h"
+#include "TelegramManager.h"
 #include <ArduinoJson.h>
 
 // ==========================================
@@ -30,6 +31,72 @@ int thresh_light_max = 999;
 
 NetworkManager networkManager;
 MqttManager mqttManager(MQTT_BROKERIP, MQTT_CLIENTID, MQTT_USERNAME, MQTT_PASSWORD);
+TelegramManager telegramManager;
+
+// ==========================================
+// HELPER FUNCTIONS PER TELEGRAM BOT
+// ==========================================
+void muteAllAlarms() {
+  for (int i = 0; i < activeNodeCount; i++) {
+    if (nodeRegistry[i].state == ALARM_ACTIVE) {
+      String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
+      mqttManager.publish(topic.c_str(), "MUTE");
+      
+      // Reset immediato dello stato locale per evitare loop dell'allarme in attesa della telemetria
+      nodeRegistry[i].state = ARMED;
+      nodeRegistry[i].alarmReason = "";
+      
+      // Se è il nodo virtuale di test manuale, rimuoviamolo per non inquinare la UI
+      if (nodeRegistry[i].id == "manual_test") {
+        for (int j = i; j < activeNodeCount - 1; j++) {
+          nodeRegistry[j] = nodeRegistry[j + 1];
+        }
+        activeNodeCount--;
+        i--; // Compensa per l'elemento rimosso
+        
+        if (selectedNodeIndex >= activeNodeCount) {
+          selectedNodeIndex = activeNodeCount > 0 ? activeNodeCount - 1 : 0;
+        }
+      }
+    }
+  }
+}
+
+void triggerManualFire() {
+  String topic = String(MQTT_BASE_TOPIC) + "manual_test/events/fire";
+  mqttManager.publish(topic.c_str(), "true");
+}
+
+void triggerManualImpact() {
+  String topic = String(MQTT_BASE_TOPIC) + "manual_test/events/impact";
+  mqttManager.publish(topic.c_str(), "true");
+}
+
+void armAllNodes() {
+  currentState = ARMED;
+  for (int i = 0; i < activeNodeCount; i++) {
+    String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
+    mqttManager.publish(topic.c_str(), "ARM");
+  }
+}
+
+void disarmAllNodes() {
+  currentState = DISARMED;
+  for (int i = 0; i < activeNodeCount; i++) {
+    String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
+    mqttManager.publish(topic.c_str(), "DISARM");
+  }
+}
+
+String getSystemStatus() {
+  String msg = "Stato Sistema:\n";
+  msg += "Modalità: " + String(currentState == ARMED ? "ARMED 🛡️" : (currentState == DISARMED ? "DISARMED 🔓" : "ALARM 🚨")) + "\n";
+  msg += "Nodi Connessi: " + String(activeNodeCount) + "\n\n";
+  for (int i = 0; i < activeNodeCount; i++) {
+    msg += "- " + nodeRegistry[i].id + " (" + (nodeRegistry[i].state == ALARM_ACTIVE ? "🚨" : "✅") + ")\n";
+  }
+  return msg;
+}
 
 // ==========================================
 // THING DESCRIPTION (WoT) JSON
@@ -136,15 +203,21 @@ void onMqttMessage(String &topic, String &payload) {
     }
   } else if (subTopic == "events/impact") {
     if (payload == "true") {
-      nodeRegistry[idx].state = ALARM_ACTIVE;
-      nodeRegistry[idx].alarmReason = "IMPACT";
-      Serial.println("!!! ALLARME INTRUSIONE DA " + nodeId + " !!!");
+      if (nodeRegistry[idx].state != ALARM_ACTIVE) {
+        nodeRegistry[idx].state = ALARM_ACTIVE;
+        nodeRegistry[idx].alarmReason = "IMPACT";
+        Serial.println("!!! ALLARME INTRUSIONE DA " + nodeId + " !!!");
+        telegramManager.sendAlert("🚨 ALLARME INTRUSIONE!\nRilevato dal nodo: " + nodeId);
+      }
     }
   } else if (subTopic == "events/fire") {
     if (payload == "true") {
-      nodeRegistry[idx].state = ALARM_ACTIVE;
-      nodeRegistry[idx].alarmReason = "FIRE";
-      Serial.println("!!! ALLARME INCENDIO DA " + nodeId + " !!!");
+      if (nodeRegistry[idx].state != ALARM_ACTIVE) {
+        nodeRegistry[idx].state = ALARM_ACTIVE;
+        nodeRegistry[idx].alarmReason = "FIRE";
+        Serial.println("!!! ALLARME INCENDIO DA " + nodeId + " !!!");
+        telegramManager.sendAlert("🔥 ALLARME INCENDIO!\nRilevato dal nodo: " + nodeId);
+      }
     }
   } else if (subTopic == "events/warning") {
     if (payload == "true") {
@@ -191,6 +264,14 @@ void setup() {
 
   setupWeb(); // Inizializza il Web Server Master
 
+  telegramManager.setup(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
+  telegramManager.onMuteCommand(muteAllAlarms);
+  telegramManager.onArmCommand(armAllNodes);
+  telegramManager.onDisarmCommand(disarmAllNodes);
+  telegramManager.onTriggerFireCommand(triggerManualFire);
+  telegramManager.onTriggerImpactCommand(triggerManualImpact);
+  telegramManager.onStatusCommand(getSystemStatus);
+
   mqttManager.setWill(MQTT_STATUS_TOPIC, "offline", true, 1);
   mqttManager.setup();
   mqttManager.onMessage(onMqttMessage);
@@ -224,6 +305,7 @@ void loop() {
   taskDisplay();
   handleWebTask();
   mqttManager.loop();
+  telegramManager.loop();
 
   // Re-subscribe if needed
   static bool wasConnected = true;
@@ -274,23 +356,11 @@ void loop() {
     flagEncoderPressed = false;
     // Se c'è un allarme, mutiamo tutti i nodi
     if (currentState == ALARM_ACTIVE) {
-      for (int i = 0; i < activeNodeCount; i++) {
-        if (nodeRegistry[i].state == ALARM_ACTIVE) {
-          String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
-          mqttManager.publish(topic.c_str(), "MUTE");
-          // Reset immediato dello stato locale per evitare loop dell'allarme in attesa della telemetria
-          nodeRegistry[i].state = ARMED;
-          nodeRegistry[i].alarmReason = "";
-        }
-      }
+      muteAllAlarms();
       currentState = ARMED;
-      stopActuators();
-      Serial.println("ALARM_ACK: Allarmi silenziati da pulsante locale.");
     } else {
-      // Navigazione menu
+      // Navigazione
       if (currentPage == STATE_OVERVIEW) {
-        if (activeNodeCount > 0) currentPage = STATE_NODE_LIST;
-      } else if (currentPage == STATE_NODE_LIST) {
         currentPage = STATE_NODE_DETAIL_1;
       } else if (currentPage == STATE_NODE_DETAIL_1 || currentPage == STATE_NODE_DETAIL_2) {
         currentPage = STATE_OVERVIEW;
