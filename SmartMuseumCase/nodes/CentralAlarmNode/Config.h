@@ -46,6 +46,14 @@ extern int thresh_light_max;
 #define TELEGRAM_BOT_TOKEN "8698223563:AAGT7JGU09vo1RuOGWZHt_plOX02FU4ZRkc"
 #define TELEGRAM_CHAT_ID "511487944"
 
+// ==========================================
+// INFLUXDB SETTINGS
+// ==========================================
+#define INFLUXDB_URL "http://iot.islab.disco.unimib.it:8086"
+#define INFLUXDB_TOKEN "ag41x-d1pY2wDpaIs5E5w0szBh-ESTkPmE32VUK6zN4WgI-SvXM7_iMFbble9r7N3CCqQSkJdY0OHl7aGpNSVw=="
+#define INFLUXDB_ORG "labiot-org"
+#define INFLUXDB_BUCKET "ChristianFerrario-bucket"
+
 #define MQTT_WILDCARD_DISCOVERY "christianferrario/museum/+/discovery"
 #define MQTT_SYSTEM_REQUEST "christianferrario/museum/system/discovery_request"
 #define MQTT_BASE_TOPIC "christianferrario/museum/"

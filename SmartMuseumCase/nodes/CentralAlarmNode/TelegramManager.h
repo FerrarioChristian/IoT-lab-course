@@ -15,7 +15,7 @@ private:
     String chatId;
     
     unsigned long bot_lasttime = 0;
-    const unsigned long BOT_MTBS = 1000; // Tempo medio tra le scansioni dei messaggi (1 secondo)
+    const unsigned long BOT_MTBS = 3000; // Ridotto a 3 secondi per evitare freeze eccessivi sul Master
 
     // Callbacks
     CommandCallback muteCallback = nullptr;

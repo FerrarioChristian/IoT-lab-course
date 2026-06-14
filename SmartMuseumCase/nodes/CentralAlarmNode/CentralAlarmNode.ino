@@ -7,6 +7,8 @@
 #include "NetworkManager.h"
 #include "MqttManager.h"
 #include "TelegramManager.h"
+#include "InfluxManager.h"
+#include "AlarmLogic.h"
 #include <ArduinoJson.h>
 
 // ==========================================
@@ -32,71 +34,7 @@ int thresh_light_max = 999;
 NetworkManager networkManager;
 MqttManager mqttManager(MQTT_BROKERIP, MQTT_CLIENTID, MQTT_USERNAME, MQTT_PASSWORD);
 TelegramManager telegramManager;
-
-// ==========================================
-// HELPER FUNCTIONS PER TELEGRAM BOT
-// ==========================================
-void muteAllAlarms() {
-  for (int i = 0; i < activeNodeCount; i++) {
-    if (nodeRegistry[i].state == ALARM_ACTIVE) {
-      String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
-      mqttManager.publish(topic.c_str(), "MUTE");
-      
-      // Reset immediato dello stato locale per evitare loop dell'allarme in attesa della telemetria
-      nodeRegistry[i].state = ARMED;
-      nodeRegistry[i].alarmReason = "";
-      
-      // Se è il nodo virtuale di test manuale, rimuoviamolo per non inquinare la UI
-      if (nodeRegistry[i].id == "manual_test") {
-        for (int j = i; j < activeNodeCount - 1; j++) {
-          nodeRegistry[j] = nodeRegistry[j + 1];
-        }
-        activeNodeCount--;
-        i--; // Compensa per l'elemento rimosso
-        
-        if (selectedNodeIndex >= activeNodeCount) {
-          selectedNodeIndex = activeNodeCount > 0 ? activeNodeCount - 1 : 0;
-        }
-      }
-    }
-  }
-}
-
-void triggerManualFire() {
-  String topic = String(MQTT_BASE_TOPIC) + "manual_test/events/fire";
-  mqttManager.publish(topic.c_str(), "true");
-}
-
-void triggerManualImpact() {
-  String topic = String(MQTT_BASE_TOPIC) + "manual_test/events/impact";
-  mqttManager.publish(topic.c_str(), "true");
-}
-
-void armAllNodes() {
-  currentState = ARMED;
-  for (int i = 0; i < activeNodeCount; i++) {
-    String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
-    mqttManager.publish(topic.c_str(), "ARM");
-  }
-}
-
-void disarmAllNodes() {
-  currentState = DISARMED;
-  for (int i = 0; i < activeNodeCount; i++) {
-    String topic = String(MQTT_BASE_TOPIC) + nodeRegistry[i].id + "/actions/cmd";
-    mqttManager.publish(topic.c_str(), "DISARM");
-  }
-}
-
-String getSystemStatus() {
-  String msg = "Stato Sistema:\n";
-  msg += "Modalità: " + String(currentState == ARMED ? "ARMED 🛡️" : (currentState == DISARMED ? "DISARMED 🔓" : "ALARM 🚨")) + "\n";
-  msg += "Nodi Connessi: " + String(activeNodeCount) + "\n\n";
-  for (int i = 0; i < activeNodeCount; i++) {
-    msg += "- " + nodeRegistry[i].id + " (" + (nodeRegistry[i].state == ALARM_ACTIVE ? "🚨" : "✅") + ")\n";
-  }
-  return msg;
-}
+InfluxManager influxManager;
 
 // ==========================================
 // THING DESCRIPTION (WoT) JSON
@@ -208,6 +146,7 @@ void onMqttMessage(String &topic, String &payload) {
         nodeRegistry[idx].alarmReason = "IMPACT";
         Serial.println("!!! ALLARME INTRUSIONE DA " + nodeId + " !!!");
         telegramManager.sendAlert("🚨 ALLARME INTRUSIONE!\nRilevato dal nodo: " + nodeId);
+        influxManager.logEvent(nodeId, "IMPACT");
       }
     }
   } else if (subTopic == "events/fire") {
@@ -217,15 +156,17 @@ void onMqttMessage(String &topic, String &payload) {
         nodeRegistry[idx].alarmReason = "FIRE";
         Serial.println("!!! ALLARME INCENDIO DA " + nodeId + " !!!");
         telegramManager.sendAlert("🔥 ALLARME INCENDIO!\nRilevato dal nodo: " + nodeId);
+        influxManager.logEvent(nodeId, "FIRE");
       }
     }
   } else if (subTopic == "events/warning") {
-    if (payload == "true") {
-      nodeRegistry[idx].activeWarning = true;
-      nodeRegistry[idx].data.distanceCm = 1.0; // Valore fittizio per forzare warning visivo
+    if (payload.indexOf("true") >= 0) {
+      if (!nodeRegistry[idx].activeWarning) {
+        nodeRegistry[idx].activeWarning = true;
+        Serial.println("!!! ATTENZIONE PROSSIMITA' DA " + nodeId + " !!!");
+      }
     } else {
       nodeRegistry[idx].activeWarning = false;
-      nodeRegistry[idx].data.distanceCm = 999.0;
     }
   } else if (subTopic == "telemetry") {
     int tIdx = payload.indexOf("\"temperature\":");
@@ -263,6 +204,10 @@ void setup() {
   networkManager.connect("CentralAlarm-Setup");
 
   setupWeb(); // Inizializza il Web Server Master
+
+  initAlarmLogic(&mqttManager, &telegramManager, &influxManager);
+
+  influxManager.setup(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
   telegramManager.setup(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
   telegramManager.onMuteCommand(muteAllAlarms);
@@ -332,12 +277,7 @@ void loop() {
     if (nodeRegistry[i].state == ALARM_ACTIVE) {
       globalAlarm = true;
     }
-    if (nodeRegistry[i].activeWarning || 
-        nodeRegistry[i].data.temperature > nodeRegistry[i].settings.tempMax || 
-        nodeRegistry[i].data.humidity > nodeRegistry[i].settings.humMax || 
-        nodeRegistry[i].data.lightLevel > nodeRegistry[i].settings.lightMax) {
-      globalWarning = true;
-    }
+    checkNodeThresholds(i, globalWarning);
   }
 
   if (globalAlarm) {

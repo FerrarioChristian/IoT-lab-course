@@ -56,15 +56,26 @@ struct NodeCapabilities {
   bool hasWarningEvent;
 };
 
+struct ThresholdTracker {
+  unsigned long exceededSince = 0;
+  bool logged = false;
+};
+
 struct NodeState {
   String id;
-  SensorData data;
   SystemState state;
-  bool activeWarning;
-  unsigned long lastSeen;
-  Thresholds settings;
   String alarmReason;
+  bool activeWarning;
+  SensorData data;
+  Thresholds settings;
   NodeCapabilities capabilities;
+  unsigned long lastSeen;
+  
+  // Trackers per loggare le anomalie (10 secondi) su InfluxDB
+  ThresholdTracker tempTracker;
+  ThresholdTracker humTracker;
+  ThresholdTracker lightTracker;
+  ThresholdTracker distTracker;
 };
 
 extern NodeState nodeRegistry[MAX_NODES];
