@@ -105,11 +105,12 @@ void setup() {
   thingDescription.replace("{{TOPIC_CMD}}", topicCmd);
 
   // Setup MQTT
+  // Setup MQTT
   mqttManager = new MqttManager(MQTT_BROKERIP, clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
   mqttManager->setWill(topicStatus.c_str(), "offline", true, 1);
   mqttManager->setup();
   mqttManager->onMessage(onMqttMessage);
-
+  
   if (mqttManager->isConnected()) {
     mqttManager->publish(topicStatus.c_str(), "online", true, 1);
     mqttManager->publish(topicDiscovery.c_str(), thingDescription.c_str());
@@ -117,45 +118,51 @@ void setup() {
     mqttManager->subscribe("christianferrario/museum/system/discovery_request");
     addLog("Inviato stato online e sottoscritto ai topic.");
   }
+  
+  // Aspetta che MQTT si stabilizzi e riceva eventuali messaggi (es. MUTE, DISARM, o Discovery)
+  for(int i=0; i<50; i++) {
+    mqttManager->loop();
+    delay(10);
+  }
 
+  // --- LOGICA SENSORI ---
   setupSensors();
+  
+  // Lettura istantanea
+  int analogVal = analogRead(PIN_FLAME_A);
+  bool isFire = (digitalRead(PIN_FLAME_D) == HIGH);
+  
+  if (isFire || flagFireDetected) {
+    if (currentState == ARMED) {
+      currentState = ALARM_ACTIVE;
+      addLog("FIRE DETECTED: Hardware sensor triggered.");
+      mqttManager->publish(topicFire.c_str(), "true", false, 1);
+    }
+  }
 
-  addLog("==== FIRE NODE BOOT ====");
-  addLog("Hardware NodeMCU inizializzato con successo (" + nodeId + ").");
-  addLog("Sensore fiamma KY-026 pronto all'uso.");
+  // --- PUBBLICAZIONE TELEMETRIA ---
+  String payload = "{";
+  payload += "\"flameAnalog\":" + String(analogVal) + ",";
+  payload += "\"currentState\":" + String(currentState);
+  payload += "}";
 
-  currentState = ARMED;
+  Serial.println("Publishing telemetry: " + payload);
+  mqttManager->publish(topicTelemetry.c_str(), payload.c_str());
+
+  // Dai tempo ad MQTT di spedire i messaggi
+  delay(100);
+
+  // --- DEEP SLEEP ---
+  Serial.println("Going into Deep Sleep for 5 seconds...");
+  // Nota per il professore: il pin D0 deve essere collegato al pin RST!
+  ESP.deepSleep(5e6); // 5 secondi = 5.000.000 microsecondi
 }
 
 // ==========================================
 // MAIN LOOP
 // ==========================================
 void loop() {
-  taskSensori();
-  mqttManager->loop();
-  
-  // Re-subscribe if reconnected
-  static bool wasConnected = true;
-  if (mqttManager->isConnected() && !wasConnected) {
-      mqttManager->subscribe(topicCmd.c_str());
-      wasConnected = true;
-  } else if (!mqttManager->isConnected()) {
-      wasConnected = false;
-  }
-
-  // ==========================================
-  // EVENT-DRIVEN LOGIC: FIRE ALARM
-  // ==========================================
-  // L'allarme scatta istantaneamente flaggato dall'interrupt
-  if (flagFireDetected) {
-    flagFireDetected = false; // Reset flag
-    
-    if (currentState == ARMED) {
-      currentState = ALARM_ACTIVE;
-      addLog("FIRE EMERGENCY: Flame detected via Hardware Interrupt!");
-      
-      // Invio messaggio istantaneo MQTT con QoS 1 per affidabilità
-      mqttManager->publish(topicFire.c_str(), "true", false, 1);
-    }
-  }
+  // In modalità Deep Sleep il loop non viene mai raggiunto,
+  // perché al termine del setup il microcontrollore si spegne.
+  // Al termine del timer (5 secondi), l'impulso su RST lo riavvierà.
 }

@@ -1,10 +1,13 @@
 #include "Config.h"
 #include "Sensors.h"
 #include "State.h"
-
 #include "NetworkManager.h"
 #include "MqttManager.h"
 #include <ESP8266WiFi.h>
+
+extern "C" {
+  #include "user_interface.h"
+}
 
 // ==========================================
 // ISTANZIAZIONE VARIABILI GLOBALI
@@ -78,7 +81,9 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
+  // Setup Wi-Fi e Sleep Mode (Auto Light-Sleep)
   networkManager.connect("Teca-Setup");
+  wifi_set_sleep_type(LIGHT_SLEEP_T);
 
   // Generazione ID dinamico basato sul MAC Address
   String mac = WiFi.macAddress();
@@ -225,4 +230,7 @@ void loop() {
       mqttManager->publish(topicImpact.c_str(), "true", false, 1);
     }
   }
+
+  // Yielding strategico per permettere l'Auto Light-Sleep
+  delay(50);
 }
