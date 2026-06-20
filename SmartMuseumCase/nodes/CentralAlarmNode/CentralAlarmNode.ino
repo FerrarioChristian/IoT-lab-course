@@ -10,6 +10,8 @@
 #include "InfluxManager.h"
 #include "AlarmLogic.h"
 #include <ArduinoJson.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 
 // ==========================================
 // ISTANZIAZIONE VARIABILI GLOBALI
@@ -26,10 +28,11 @@ volatile bool flagEncoderPressed = false;
 volatile int encoderCount = 0;
 
 // Valori predefiniti delle soglie (aggiornabili da Web)
-float thresh_temp_max = 30.0;
-float thresh_hum_max = 60.0;
+float thresh_temp_max = 32.0;
+float thresh_hum_max = 75.0;
 int thresh_distance_min = 10;
 int thresh_light_max = 999;
+float thresh_uv_max = 11.0;
 
 NetworkManager networkManager;
 MqttManager mqttManager(MQTT_BROKERIP, MQTT_CLIENTID, MQTT_USERNAME, MQTT_PASSWORD);
@@ -124,7 +127,7 @@ void onMqttMessage(String &topic, String &payload) {
     }
     return;
   } else if (subTopic == "status") {
-    if (payload == "offline") {
+    if (payload.indexOf("offline") >= 0) {
       Serial.println("!!! NODO DISCONNESSO: " + nodeId + " !!!");
       
       // Rimuovi il nodo traslando gli elementi successivi verso sinistra
@@ -244,9 +247,63 @@ void setup() {
 }
 
 // ==========================================
+// FUNZIONE PER CHECK INDICE UV
+// ==========================================
+unsigned long lastUvCheck = 0;
+bool uvWarningActive = false;
+
+void checkUvIndex() {
+  if (millis() - lastUvCheck < 900000 && lastUvCheck != 0) return; // Check every 15 mins
+  lastUvCheck = millis();
+
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  WiFiClient client;
+  HTTPClient http;
+  
+  if (http.begin(client, OPENMETEO_UV_URL)) {
+    int httpCode = http.GET();
+    if (httpCode > 0) {
+      if (httpCode == HTTP_CODE_OK) {
+        String payload = http.getString();
+        
+        // Parse JSON (DynamicJsonDocument is safe for an ESP8266 with standard memory, ~1024 bytes)
+        DynamicJsonDocument doc(1024);
+        DeserializationError error = deserializeJson(doc, payload);
+        
+        if (!error) {
+          float uv_index = doc["current"]["uv_index"];
+          Serial.println("[UV API] Indice UV attuale: " + String(uv_index));
+          
+          if (uv_index >= thresh_uv_max) {
+            if (!uvWarningActive) {
+              uvWarningActive = true;
+              addLog("PRESERVATION WARNING: Alta Radiazione UV (" + String(uv_index) + ")");
+              influxManager.logEvent("central_alarm", "HIGH-UV");
+              telegramManager.sendAlert("⚠️ PRESERVATION WARNING: Rilevata Radiazione UV Estrema all'esterno (" + String(uv_index) + "). Rischio degrado pigmenti. Si consiglia di chiudere le tende.");
+            }
+          } else {
+            uvWarningActive = false;
+          }
+        } else {
+          Serial.println("[UV API] Failed to parse JSON");
+        }
+      }
+    } else {
+      Serial.println("[UV API] GET failed, error: " + String(http.errorToString(httpCode).c_str()));
+    }
+    http.end();
+  }
+}
+
+// ==========================================
 // MAIN LOOP
 // ==========================================
 void loop() {
+  if (WiFi.status() != WL_CONNECTED) return; // Non eseguire se disconnesso
+
+  checkUvIndex();
+
   taskDisplay();
   handleWebTask();
   mqttManager.loop();

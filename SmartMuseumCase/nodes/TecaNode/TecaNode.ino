@@ -17,8 +17,8 @@ volatile SensorData currentData = {0.0, 0.0, 0, 0.0, false, 0};
 volatile bool flagKnockDetected = false;
 
 // Valori predefiniti delle soglie (aggiornabili da MQTT)
-float thresh_temp_max = 30.0;
-float thresh_hum_max = 60.0;
+float thresh_temp_max = 32.0;
+float thresh_hum_max = 75.0;
 int thresh_distance_min = 10;
 int thresh_light_max = 999;
 
@@ -81,9 +81,9 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
-  // Setup Wi-Fi e Sleep Mode (Auto Light-Sleep)
+  // Setup Wi-Fi
   networkManager.connect("Teca-Setup");
-  wifi_set_sleep_type(LIGHT_SLEEP_T);
+  wifi_set_sleep_type(NONE_SLEEP_T);
 
   // Generazione ID dinamico basato sul MAC Address
   String mac = WiFi.macAddress();
@@ -230,7 +230,4 @@ void loop() {
       mqttManager->publish(topicImpact.c_str(), "true", false, 1);
     }
   }
-
-  // Yielding strategico per permettere l'Auto Light-Sleep
-  delay(50);
 }

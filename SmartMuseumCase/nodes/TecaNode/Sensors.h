@@ -13,4 +13,6 @@ void setupSensors();
  */
 void taskSensori();
 
+extern volatile bool isMeasuring;
+
 #endif // SENSORS_H

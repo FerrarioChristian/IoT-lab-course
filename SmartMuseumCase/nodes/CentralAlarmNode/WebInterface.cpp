@@ -60,7 +60,8 @@ void handleApiSettingsGetRoute() {
   json += "\"dist\":" + String(nodeRegistry[idx].settings.distMin) + ",";
   json += "\"light\":" + String(nodeRegistry[idx].settings.lightMax) + ",";
   json += "\"hum\":" + String(nodeRegistry[idx].settings.humMax) + ",";
-  json += "\"temp\":" + String(nodeRegistry[idx].settings.tempMax);
+  json += "\"temp\":" + String(nodeRegistry[idx].settings.tempMax) + ",";
+  json += "\"uv\":" + String(thresh_uv_max);
   json += "}";
   server.send(200, "application/json", json);
 }
@@ -86,6 +87,7 @@ void handleApiSettingsPostRoute() {
   if (server.hasArg("light")) nodeRegistry[idx].settings.lightMax = server.arg("light").toInt();
   if (server.hasArg("hum")) nodeRegistry[idx].settings.humMax = server.arg("hum").toFloat();
   if (server.hasArg("temp")) nodeRegistry[idx].settings.tempMax = server.arg("temp").toFloat();
+  if (server.hasArg("uv")) thresh_uv_max = server.arg("uv").toFloat();
   
   // Opzionale: Inviare il comando MQTT alla teca per aggiornare la soglia di prossimità hardware
   String topic = String(MQTT_BASE_TOPIC) + nodeId + "/settings/distance";

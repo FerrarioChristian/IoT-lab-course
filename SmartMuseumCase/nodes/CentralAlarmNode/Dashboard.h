@@ -491,6 +491,10 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
                 <label>Temperatura Massima (°C)</label>
                 <input type="number" id="temp" step="0.1">
             </div>
+            <div class="form-group">
+                <label>Indice UV Massimo Esterno (Globale)</label>
+                <input type="number" id="uv" step="0.1">
+            </div>
             <div class="controls">
                 <button onclick="window.location.href='/'">Indietro</button>
                 <button class="primary" onclick="salvaImpostazioni()">Salva Valori</button>
@@ -517,6 +521,7 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
                 document.getElementById('light').value = data.light;
                 document.getElementById('hum').value = data.hum;
                 document.getElementById('temp').value = data.temp;
+                document.getElementById('uv').value = data.uv;
             } catch (error) {
                 console.error("Errore fetch impostazioni:", error);
             }
@@ -528,6 +533,7 @@ const char SETTINGS_HTML[] PROGMEM = R"=====(
             formData.append('light', document.getElementById('light').value);
             formData.append('hum', document.getElementById('hum').value);
             formData.append('temp', document.getElementById('temp').value);
+            formData.append('uv', document.getElementById('uv').value);
 
             try {
                 const res = await fetch('/api/settings', {

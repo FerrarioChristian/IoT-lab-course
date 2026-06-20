@@ -31,6 +31,12 @@ extern float thresh_temp_max;
 extern float thresh_hum_max;
 extern int thresh_distance_min;
 extern int thresh_light_max;
+extern float thresh_uv_max;
+
+// ==========================================
+// EXTERNAL API SETTINGS
+// ==========================================
+#define OPENMETEO_UV_URL "http://api.open-meteo.com/v1/forecast?latitude=45.4642&longitude=9.1900&current=uv_index"
 
 // ==========================================
 // MQTT & WOT SETTINGS
